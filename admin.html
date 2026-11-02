@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>系统管理</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+<style>
+  /* ================= 系统管理 ================= */
+  .role-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 24px; padding: 0 10px; border-radius: 4px;
+    background: var(--indigo-bg); color: #12307A;
+    font-size: 11.5px; border: 1px solid #D3DDF2;
+  }
+
+  .adm-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* 顶部横向分区 */
+  .adm-tabs {
+    display: flex; align-items: center; gap: 4px;
+    padding: 0 14px; border-bottom: 1px solid var(--line);
+    flex: 0 0 auto;
+  }
+  .adm-tab {
+    position: relative; height: 44px; padding: 0 12px; cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    font-size: 13px; color: var(--ink-2);
+  }
+  .adm-tab:hover { color: var(--brand-8); }
+  .adm-tab.on { color: var(--brand-9); font-weight: 500; }
+  .adm-tab.on::after {
+    content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px;
+    height: 2px; background: var(--brand-7); border-radius: 2px;
+  }
+  .adm-tab .soon {
+    font-size: 10px; font-weight: 400; color: var(--ink-4);
+    border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; line-height: 15px;
+  }
+
+  .adm-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+  .sec { border-bottom: 1px solid var(--line); }
+  .sec:last-child { border-bottom: 0; }
+  .sec-hd { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px 0; }
+  .sec-hd h3 { margin: 0; font-size: 13px; font-weight: 500; color: var(--ink-1); }
+  .sec-hd .hint { font-size: 11.5px; color: var(--ink-3); }
+  .sec-bd { padding: 11px 18px 14px; }
+
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 7px 0; border-bottom: 1px dashed var(--line-2);
+  }
+  .row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .row:first-child { padding-top: 0; }
+  .row-lb { width: 84px; flex: 0 0 auto; font-size: 12.5px; color: var(--ink-2); }
+  .row-ct { flex: 1; min-width: 0; }
+  .row-hint { font-size: 11px; color: var(--ink-3); }
+  .row-t { font-size: 12.5px; color: var(--ink-1); }
+  .row-d { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+  .seg button {
+    height: 28px; padding: 0 11px; border: 0; background: #fff; cursor: pointer;
+    font-size: 12px; color: var(--ink-2); font-family: inherit; border-right: 1px solid var(--line);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--brand-1); color: var(--brand-9); font-weight: 500; }
+
+  .ro-note {
+    margin-top: 12px; padding: 8px 11px; border-radius: 6px;
+    background: #F8F9FA; border: 1px solid var(--line-2);
+    font-size: 11.5px; color: var(--ink-3); line-height: 1.6;
+  }
+
+  /* 未交付分区的占位 */
+  .todo {
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+    padding: 52px 24px 40px; text-align: center;
+  }
+  .todo-ico {
+    width: 42px; height: 42px; border-radius: 12px; margin-bottom: 14px;
+    background: var(--line-2); color: var(--ink-4);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .todo h4 { margin: 0 0 6px; font-size: 14px; font-weight: 500; color: var(--ink-1); }
+  .todo p { margin: 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.75; max-width: 520px; }
+  .todo .todo-warn {
+    margin-top: 16px; padding: 9px 13px; border-radius: 7px;
+    background: var(--warm-bg); border: 1px solid #F3E2C6;
+    color: var(--warm-deep); font-size: 12px; line-height: 1.65; text-align: left;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <app-shell active="admin">
+
+    <div class="page-head">
+      <div>
+        <h1>系统管理</h1>
+        <p>面向工作室管理人员的后台，和「个人中心」不是一回事：那边配学生自己的偏好，这边管全校的资料与接入</p>
+      </div>
+      <div class="ph-right">
+        <span class="role-tag">
+          <app-icon name="lock" :size="13"></app-icon>
+          当前身份：管理员
+        </span>
+      </div>
+    </div>
+
+    <div class="adm-card">
+      <!-- 横向分区 -->
+      <div class="adm-tabs">
+        <div v-for="t in tabs" :key="t.k" class="adm-tab" :class="{ on: tab === t.k }" @click="tab = t.k">
+          <app-icon :name="t.icon" :size="15"></app-icon>
+          <span>{{ t.t }}</span>
+          <span class="soon" v-if="!t.ready">待交付</span>
+        </div>
+      </div>
+
+      <div class="adm-body">
+
+        <!-- ============ 资料管理（待交付） ============ -->
+        <div v-if="tab === 'res'" class="todo">
+          <div class="todo-ico"><app-icon name="book" :size="20"></app-icon></div>
+          <h4>资料管理 · 待交付</h4>
+          <p>
+            上传、分类、下架、删除学习资料。学习资料库页是学生看的读端，这里是写端，共用同一份资料表和分类。
+          </p>
+          <div class="todo-warn">
+            文档自己在风险表里提过：资料可能存在版权与授权问题，第一阶段由管理员统一上传、明确来源与使用范围。所以上传表单不能只做「选文件 + 起名字」，至少要带来源和授权范围两个字段，而且要在学生端的资料详情里可见。
+          </div>
+        </div>
+
+        <!-- ============ 课程目录（待交付） ============ -->
+        <div v-if="tab === 'course'" class="todo">
+          <div class="todo-ico"><app-icon name="cap" :size="20"></app-icon></div>
+          <h4>课程目录 · 待交付</h4>
+          <p>
+            课程本身由教务同步进来，这里只做三件事：给课程补别名、看每门课有多少份资料、把不再开的课归档。不需要「新增课程」——学生的课是教务给的，不是管理员编的。
+          </p>
+        </div>
+
+        <!-- ============ 平台接入（待交付） ============ -->
+        <div v-if="tab === 'source'" class="todo">
+          <div class="todo-ico"><app-icon name="lock" :size="20"></app-icon></div>
+          <h4>平台接入 · 待交付</h4>
+          <p>
+            教务接口的连接状态、上次同步时间、手动同步按钮、最近几次失败记录。单校单接口，配一次用四年，做成「状态页 + 一个按钮」就够，不需要适配器市场。
+          </p>
+          <div class="todo-warn">
+            这一块能不能做，取决于学校信息中心给不给接口。没批下来之前，课表和作业靠手动创建与文件导入，功能不能停摆。
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>
+(function () {
+  var C = window.APP_CONFIG;
+
+  mountApp({
+    data: function () {
+      return {
+        tabs: [
+          { k: 'res',    t: '资料管理', icon: 'book', ready: false },
+          { k: 'course', t: '课程目录', icon: 'cap',  ready: false },
+          { k: 'source', t: '平台接入', icon: 'lock', ready: false }
+        ],
+        tab: 'res',
+
+      };
+    },
+    methods: {
+      toast: function (t, theme) {
+        var fn = { warning: TDesign.MessagePlugin.warning }[theme] || TDesign.MessagePlugin.success;
+        fn(t);
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>学习工作台</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<!-- 注意：in-DOM 模板里自定义标签必须显式闭合，不能写成 <app-icon /> -->
+<div id="app">
+  <app-shell active="home">
+
+    <!-- ================= 页头：问候 + 日期 ================= -->
+    <div class="page-head">
+      <div>
+        <h1>{{ greeting }}，{{ userName }}</h1>
+        <p>{{ headLine }}</p>
+      </div>
+      <div class="ph-right">
+        <div class="ph-date">
+          <b>{{ dateText }}</b>
+          <span>第 {{ week }} 周</span>
+        </div>
+        <t-button theme="primary" @click="go('tasks.html?new=1')">添加任务</t-button>
+      </div>
+    </div>
+
+    <!-- ================= 学习概况：三格 ================= -->
+    <div class="stat-row">
+      <div class="stat-card" @click="go('tasks.html')">
+        <div class="st-ico teal"><app-icon name="list" :size="20"></app-icon></div>
+        <div class="st-body">
+          <div class="st-label">待完成任务</div>
+          <div class="st-val">{{ stat.todo }}<em>项</em></div>
+          <div class="st-sub">{{ stat.soon ? stat.soon + ' 项在 3 天内到期' : '没有临近截止的任务' }}</div>
+        </div>
+        <span class="st-go"><app-icon name="chev-right" :size="16"></app-icon></span>
+      </div>
+
+      <div class="stat-card" @click="go('schedule.html')">
+        <div class="st-ico navy"><app-icon name="calendar" :size="20"></app-icon></div>
+        <div class="st-body">
+          <div class="st-label">今日安排</div>
+          <div class="st-val">{{ todayItems.length }}<em>项</em></div>
+          <div class="st-sub">{{ todayFoot }}</div>
+        </div>
+        <span class="st-go"><app-icon name="chev-right" :size="16"></app-icon></span>
+      </div>
+
+      <div class="stat-card" @click="go('tasks.html')">
+        <div class="st-ico orange"><app-icon name="clock" :size="20"></app-icon></div>
+        <div class="st-body">
+          <div class="st-label">即将截止</div>
+          <div class="st-val">{{ soonList.length }}<em>项</em></div>
+          <div class="st-sub">{{ soonSub }}</div>
+        </div>
+        <span class="st-go"><app-icon name="chev-right" :size="16"></app-icon></span>
+      </div>
+    </div>
+
+    <!-- ================= 主体：待办任务 | 今日日程 ================= -->
+    <div class="home-grid">
+
+      <!-- -------- 待办任务 -------- -->
+      <div class="card grow">
+        <div class="card-hd">
+          <span class="hd-ico"><app-icon name="list" :size="16"></app-icon></span>
+          <h2>待办任务</h2>
+          <div class="hd-act">
+            <a class="link" @click="go('tasks.html')">查看全部<app-icon name="arrow-right" :size="13"></app-icon></a>
+          </div>
+        </div>
+
+        <div class="tk-tabs">
+          <button v-for="t in tabs" :key="t.k" :class="{ on: tab === t.k }" @click="tab = t.k">
+            {{ t.label }}<i>{{ tabCount(t.k) }}</i>
+          </button>
+        </div>
+
+        <div class="card-bd">
+          <div class="empty" v-if="!visibleTasks.length">
+            <div class="em-ico"><app-icon name="check" :size="24"></app-icon></div>
+            <p>{{ tab === 'all' ? '手上的任务都清完了。' : '这个分类下没有待办。' }}</p>
+            <div class="em-act">
+              <t-button variant="outline" size="small" @click="go('tasks.html?new=1')">添加一个</t-button>
+            </div>
+          </div>
+
+          <div v-for="t in visibleTasks" :key="t.id" class="tk-row" @click="go('tasks.html?id=' + t.id)">
+            <button class="tk-check" title="标记为已完成" @click.stop="complete(t)">
+              <app-icon name="check" :size="11"></app-icon>
+            </button>
+            <div class="tk-main">
+              <div class="tk-title">{{ t.title }}</div>
+              <div class="tk-sub">{{ subLine(t) }}</div>
+            </div>
+            <span class="tag src">{{ srcText(t.source) }}</span>
+            <div class="tk-right">
+              <div class="tk-due" :class="dueCls(t)">{{ dueText(t) }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- -------- 今日日程 -------- -->
+      <div class="card grow">
+        <div class="card-hd">
+          <span class="hd-ico"><app-icon name="calendar" :size="16"></app-icon></span>
+          <h2>今日日程</h2>
+          <div class="hd-act">
+            <a class="link" @click="go('schedule.html')">查看完整日程<app-icon name="arrow-right" :size="13"></app-icon></a>
+          </div>
+        </div>
+
+        <div class="card-bd tl-wrap">
+          <div class="empty" v-if="!todayItems.length">
+            <div class="em-ico"><app-icon name="calendar" :size="22"></app-icon></div>
+            <p>今天没有排任何事。</p>
+            <div class="em-act">
+              <t-button variant="outline" size="small" @click="go('schedule.html')">去课程表安排</t-button>
+            </div>
+          </div>
+
+          <div class="tl" v-else>
+            <div v-for="it in todayItems" :key="it.uid" class="tl-row"
+                 :class="{ 'is-done': it.st === 'done', 'is-now': it.st === 'now' }"
+                 @click="openItem(it)">
+              <span class="tl-dot"><i :class="it.kind"></i></span>
+              <span class="tl-time">{{ it.sText }} – {{ it.eText }}</span>
+              <div class="tl-body">
+                <div class="tl-title">{{ it.title }}</div>
+                <div class="tl-meta">{{ it.meta }}</div>
+              </div>
+              <span class="tag" :class="'k-' + it.kind">{{ kindText(it.kind) }}</span>
+            </div>
+          </div>
+
+          <div class="tl-foot" v-if="todayItems.length">
+            <span v-if="todayRest">还有 {{ todayRest }} 项没结束</span>
+            <span v-else>今天的安排都结束了</span>
+            <span class="tf-time">共 {{ todayDuration }}</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ================= 底部：AI 学习规划入口 ================= -->
+    <div class="ai-bar">
+      <div class="ai-orb"><app-icon name="sparkle" :size="20"></app-icon></div>
+      <div class="ai-bar-txt">
+        <h2>AI 学习规划</h2>
+        <p v-if="hasPending">「{{ pendingTitle }}」已排出 {{ pendingCount }} 个候选时段，确认后才会写进日程。</p>
+        <p v-else>根据你的课程、任务和时间安排，生成一份能执行的学习计划。</p>
+      </div>
+      <t-button theme="primary" @click="aiAct">{{ hasPending ? '去确认' : '开始规划' }}</t-button>
+    </div>
+
+    <!-- ================= 安排详情 ================= -->
+    <t-dialog v-model:visible="detailVisible" :header="detail.header" :footer="false" width="420px">
+      <dl class="dlg-meta">
+        <template v-for="row in detail.rows" :key="row[0]">
+          <dt>{{ row[0] }}</dt>
+          <dd>{{ row[1] }}</dd>
+        </template>
+      </dl>
+      <div class="dlg-note" v-if="detail.note">{{ detail.note }}</div>
+    </t-dialog>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>
+(function () {
+  const C = window.APP_CONFIG;
+  const M = window.MOCK;
+  const U = window.AppUtil;
+
+  const WEEK = 12;
+  const NOW = U.NOW;
+
+  const SRC_TEXT = { platform: '学校待办', manual: '个人计划', import: '个人计划' };
+  const TYPE_TEXT = { assignment: '作业', project: '项目', review: '复习', reading: '阅读' };
+  const KIND_TEXT = { course: '课程', study: '学习', personal: '个人', exam: '考试' };
+  const ACTIVE_ST = ['confirmed', 'started', 'completed'];
+
+  const TABS = [
+    { k: 'all', label: '全部' },
+    { k: 'school', label: '学校待办' },
+    { k: 'mine', label: '个人计划' }
+  ];
+
+  mountApp({
+    data() {
+      return {
+        week: WEEK,
+        todayIso: M.today,
+        tasks: window.Store.tasks(),
+        courses: M.courses,
+        events: M.events,
+        sessions: M.sessions,
+        plans: M.plans,
+        tabs: TABS,
+        tab: 'all',
+        detailVisible: false,
+        detail: { header: '', rows: [], note: '' }
+      };
+    },
+
+    computed: {
+      userName() { return C.demoUser.name; },
+
+      greeting() {
+        const h = Math.floor(NOW / 60);
+        if (h < 11) return '早上好';
+        if (h < 13) return '中午好';
+        if (h < 18) return '下午好';
+        return '晚上好';
+      },
+
+      dateText() { return U.cnDate(this.todayIso); },
+
+      todayItems() {
+        const self = this;
+        const wd = U.dowOf(this.todayIso);
+        const out = [];
+
+        this.courses.forEach(function (c) {
+          if (c.weekday !== wd) return;
+          if (self.week < c.start_week || self.week > c.end_week) return;
+          out.push({
+            uid: 'c' + c.id,
+            kind: 'course',
+            title: c.name + '（第 ' + self.periodOf(c.start_time) + ' 节）',
+            meta: c.classroom + ' · ' + c.teacher,
+            s: U.hm(c.start_time),
+            e: U.hm(c.end_time),
+            raw: c,
+            rawType: 'course'
+          });
+        });
+
+        this.events.forEach(function (ev) {
+          if (ev.date !== self.todayIso) return;
+          let title = ev.title;
+          let task = null;
+          if (ev.event_type === 'study') {
+            task = self.tasks.find(function (t) { return t.id === ev.task_id; }) || null;
+            title = task ? task.title : '学习时段';
+          }
+          out.push({
+            uid: 'e' + ev.id,
+            kind: ev.event_type,
+            title: title,
+            meta: (ev.location || '未填地点') + (task && task.course_name ? ' · ' + task.course_name : ''),
+            s: U.hm(ev.start),
+            e: U.hm(ev.end),
+            raw: ev,
+            rawType: ev.event_type,
+            task: task
+          });
+        });
+
+        out.sort(function (a, b) { return a.s - b.s || a.e - b.e; });
+
+        out.forEach(function (x) {
+          x.sText = U.fmt(x.s);
+          x.eText = U.fmt(x.e);
+          x.st = x.e <= NOW ? 'done' : (x.s <= NOW ? 'now' : 'todo');
+        });
+
+        return out;
+      },
+
+      todayRest() {
+        return this.todayItems.filter(function (x) { return x.st !== 'done'; }).length;
+      },
+
+      todayDuration() {
+        const total = this.todayItems.reduce(function (n, x) { return n + (x.e - x.s); }, 0);
+        return U.durText(total);
+      },
+
+      todayFoot() {
+        if (!this.todayItems.length) return '今天没有安排';
+        if (!this.todayRest) return '全部结束';
+        return this.todayRest + ' 项还没结束';
+      },
+
+      headLine() {
+        if (!this.todayItems.length) return '今天没有排任何事，可以安心处理手上的任务。';
+        if (!this.todayRest) return '今天的安排都结束了。';
+        const next = this.todayItems.find(function (x) { return x.st === 'todo'; });
+        if (!next) return '还有 ' + this.todayRest + ' 项正在进行。';
+        return '今天还有 ' + this.todayRest + ' 项安排，下一项 ' + next.sText + ' 开始。';
+      },
+
+      /* ---------- 任务 ---------- */
+      openTasks() {
+        const self = this;
+        return this.tasks
+          .filter(function (t) { return t.status !== 'completed' && t.status !== 'cancelled'; })
+          .sort(function (a, b) {
+            const da = a.date || '9999-99-99';
+            const db = b.date || '9999-99-99';
+            if (da !== db) return da < db ? -1 : 1;
+            return String(a.due || '99:99') < String(b.due || '99:99') ? -1 : 1;
+          });
+      },
+
+      filteredTasks() {
+        if (this.tab === 'school') {
+          return this.openTasks.filter(function (t) { return t.source === 'platform'; });
+        }
+        if (this.tab === 'mine') {
+          return this.openTasks.filter(function (t) { return t.source !== 'platform'; });
+        }
+        return this.openTasks;
+      },
+
+      visibleTasks() { return this.filteredTasks.slice(0, 8); },
+
+      stat() {
+        const self = this;
+        const todo = this.openTasks.length;
+        const soon = this.openTasks.filter(function (t) {
+          const d = U.dayDiff(self.todayIso, t.date);
+          return d !== null && d >= 0 && d <= 3;
+        }).length;
+        return { todo: todo, soon: soon };
+      },
+
+      soonList() {
+        const self = this;
+        return this.openTasks.filter(function (t) {
+          const d = U.dayDiff(self.todayIso, t.date);
+          return d !== null && d >= 0 && d <= 3;
+        });
+      },
+
+      soonSub() {
+        const list = this.soonList;
+        if (!list.length) return '最近没有要交的东西';
+        const today = list.filter(t => U.dayDiff(this.todayIso, t.date) === 0).length;
+        if (today) return today + ' 项今天到期';
+        return '最近的 ' + U.mmdd(list[0].date) + ' 到期';
+      },
+
+      /* ---------- AI 规划 ---------- */
+      pendingTitle() {
+        const p = this.plans.find(function (x) { return x.status === 'proposed'; });
+        return p ? p.title : '';
+      },
+
+      pendingCount() {
+        return this.sessions.filter(function (s) { return s.status === 'proposed'; }).length;
+      },
+
+      hasPending() { return this.pendingCount > 0 && !!this.pendingTitle; }
+    },
+
+    methods: {
+      go(href) { location.href = href; },
+
+      kindText(k) { return KIND_TEXT[k] || k; },
+
+      /* 大节次序：08:00→1、10:00→3、14:00→5、16:00→7、19:00→9 */
+      periodOf(startTime) {
+        const m = U.hm(startTime);
+        if (m < 570) return 1;
+        if (m < 690) return 3;
+        if (m < 930) return 5;
+        if (m < 1050) return 7;
+        return 9;
+      },
+
+      tabCount(k) {
+        if (k === 'school') return this.openTasks.filter(function (t) { return t.source === 'platform'; }).length;
+        if (k === 'mine') return this.openTasks.filter(function (t) { return t.source !== 'platform'; }).length;
+        return this.openTasks.length;
+      },
+
+      srcText(s) { return SRC_TEXT[s] || '个人计划'; },
+
+      subLine(t) {
+        const parts = [];
+        parts.push(t.course_name || '未关联课程');
+        if (TYPE_TEXT[t.source_type]) parts.push(TYPE_TEXT[t.source_type]);
+        return parts.join(' · ');
+      },
+
+      dueText(t) {
+        if (!t.date) return '无截止时间';
+        const d = U.dayDiff(this.todayIso, t.date);
+        if (d < 0) return '已逾期';
+        if (d === 0) return '今天 ' + (t.due || '');
+        if (d === 1) return '明天 ' + (t.due || '');
+        return U.mmdd(t.date) + ' ' + (t.due || '');
+      },
+
+      dueCls(t) {
+        if (!t.date) return 'none';
+        const d = U.dayDiff(this.todayIso, t.date);
+        if (d <= 1) return 'soon';
+        return '';
+      },
+
+      complete(t) {
+        window.Store.patch(t.id, { status: 'completed' });
+        this.tasks = window.Store.tasks();
+        TDesign.MessagePlugin.success('已完成：' + t.title);
+      },
+
+      openItem(it) {
+        this.detailVisible = true;
+
+        if (it.rawType === 'course') {
+          const c = it.raw;
+          this.detail = {
+            header: c.name,
+            rows: [
+              ['类型', '课程'],
+              ['时间段', c.start_time + ' – ' + c.end_time],
+              ['地点', c.classroom],
+              ['教师', c.teacher],
+              ['周次', '第 ' + c.start_week + ' – ' + c.end_week + ' 周']
+            ],
+            note: '课程是固定约束，AI 排学习时段时会自动避开。'
+          };
+          return;
+        }
+
+        if (it.rawType === 'study') {
+          const ev = it.raw;
+          const t = it.task;
+          const sess = this.sessions.find(function (x) { return x.id === ev.session_id; });
+          this.detail = {
+            header: it.title,
+            rows: [
+              ['类型', '学习时段'],
+              ['时间段', ev.start + ' – ' + ev.end],
+              ['地点', ev.location],
+              ['所属课程', t ? (t.course_name || '未关联') : '—'],
+              ['任务截止', t && t.date ? U.mmdd(t.date) + ' ' + t.due : '无'],
+              ['锁定', sess && sess.locked ? '已锁定，重规划不会移动' : '未锁定']
+            ],
+            note: '这段是从已确认的计划写进日程的，改它要走计划变更。'
+          };
+          return;
+        }
+
+        const ev = it.raw;
+        this.detail = {
+          header: it.title,
+          rows: [
+            ['类型', KIND_TEXT[ev.event_type] || ev.event_type],
+            ['时间段', ev.start + ' – ' + ev.end],
+            ['地点', ev.location || '未填写'],
+            ['固定', ev.is_fixed ? '是，重规划不会动' : '否，可以被调整']
+          ],
+          note: ev.event_type === 'exam'
+            ? '考试是硬约束。和已排的学习时段撞上时，课程表会标出冲突。'
+            : ''
+        };
+      },
+
+      aiAct() {
+        location.href = 'ai-plan.html';
+      }
+    },
+
+    mounted() {
+      const self = this;
+      document.title = '学习工作台 · ' + C.brand.name;
+
+      /* 从任务页改完任务跳回来时，重新读一遍 */
+      window.addEventListener('pageshow', function () {
+        self.tasks = window.Store.tasks();
+      });
+
+      window.addEventListener('keydown', function (ev) {
+        if ((ev.ctrlKey || ev.metaKey) && String(ev.key).toLowerCase() === 'k') {
+          ev.preventDefault();
+          const input = document.querySelector('.search input');
+          if (input) input.focus();
+        }
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>

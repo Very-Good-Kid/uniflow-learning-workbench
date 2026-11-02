@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>消息与通知</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<!-- 注意：in-DOM 模板里自定义标签必须显式闭合，不能写成 <app-icon /> -->
+<div id="app">
+  <!-- 消息不占一级菜单，所以 active 留空，入口只走顶栏铃铛 -->
+  <app-shell active="">
+
+    <!-- ================= 页头 ================= -->
+    <div class="page-head">
+      <div>
+        <h1>消息与通知</h1>
+        <p>{{ headLine }}</p>
+      </div>
+      <div class="ph-right">
+        <t-button variant="outline" :disabled="!unreadCount" @click="markAll">
+          <app-icon name="check" :size="15" style="margin-right:5px"></app-icon>
+          全部标为已读
+        </t-button>
+      </div>
+    </div>
+
+    <!-- ================= 工具条 =================
+         两行筛选的口径和任务页一致：状态在前（互斥），来源在后（互斥），
+         搜索永远在最右。来源筛选用 chip 不用下拉，因为只有四类，
+         摊开比藏起来快。 -->
+    <div class="toolbar">
+      <div class="tb-line">
+        <t-radio-group v-model="tab" variant="default-filled" size="small" @change="onTabChange">
+          <t-radio-button value="all">全部 {{ all.length }}</t-radio-button>
+          <t-radio-button value="unread">未读 {{ unreadCount }}</t-radio-button>
+          <t-radio-button value="read">已读 {{ readCount }}</t-radio-button>
+          <t-radio-button value="expired">已失效 {{ expiredCount }}</t-radio-button>
+        </t-radio-group>
+
+        <span class="tb-sep"></span>
+
+        <button class="chip" :class="{ on: fSrc === 'all' }" @click="fSrc = 'all'">全部来源</button>
+        <button class="chip" v-for="s in srcChips" :key="s.key"
+                :class="{ on: fSrc === s.key }" @click="fSrc = s.key">
+          <i :style="{ background: s.color }"></i>{{ s.label }}
+          <span class="c-num">{{ s.count }}</span>
+        </button>
+
+        <span class="sp"></span>
+
+        <span class="tb-count">共 {{ all.length }} 条，筛出 <b>{{ shown.length }}</b> 条</span>
+        <t-input v-model="q" placeholder="搜标题、摘要、正文" clearable style="width:216px">
+          <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
+        </t-input>
+      </div>
+    </div>
+
+    <!-- ================= 本体：左列表 + 右阅读 ================= -->
+    <div class="msg-wrap">
+
+      <!-- 左：消息列表 -->
+      <div class="msg-list">
+        <div class="card-hd">
+          <h2>{{ tabName }}</h2>
+          <span class="hd-sub">按时间倒序</span>
+        </div>
+
+        <div class="msg-items">
+          <div class="msg-item" v-for="m in shown" :key="m.id"
+               :class="{
+                 unread: !m.read && !m.expired,
+                 urgent: m.urgent,
+                 expired: m.expired,
+                 on: current && current.id === m.id
+               }"
+               @click="open(m)">
+
+            <div class="mi-top">
+              <span class="mi-src" :class="'s-' + m.source">{{ m.source_name }}</span>
+              <span class="mi-done" v-if="m.extracted">已提取</span>
+              <span class="mi-time">{{ shortTime(m.created_at) }}</span>
+            </div>
+
+            <div class="mi-title">{{ m.title }}</div>
+            <div class="mi-abs">{{ m.summary }}</div>
+          </div>
+
+          <div class="empty" v-if="!shown.length">
+            <div class="em-ico"><msg-icon name="inbox" :size="26"></msg-icon></div>
+            <p>{{ emptyText }}</p>
+            <div class="em-act">
+              <t-button v-if="hasFilter" variant="outline" size="small" @click="resetFilter">清空筛选</t-button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：阅读区 -->
+      <div class="msg-read">
+
+        <template v-if="current">
+          <div class="msg-read-bd">
+            <div class="mr-inner">
+
+            <div class="mr-head">
+              <span class="mi-src" :class="'s-' + current.source">{{ current.source_name }}</span>
+              <span class="tag risk" v-if="current.urgent && !current.expired">需要处理</span>
+              <span class="tag none" v-if="current.expired">已失效</span>
+              <span class="tag done" v-if="current.extracted">已提取为任务</span>
+              <span class="mr-time">{{ current.created_at }}</span>
+            </div>
+
+            <h2 class="mr-title">{{ current.title }}</h2>
+
+            <div class="mr-body">
+              <p v-for="(p, i) in paras" :key="i">{{ p }}</p>
+            </div>
+
+            <div class="mr-files" v-if="current.attachments && current.attachments.length">
+              <div class="mr-file" v-for="f in current.attachments" :key="f.name" @click="openFile(f)">
+                <msg-icon name="file" :size="16" style="color:var(--ink-4)"></msg-icon>
+                <span class="rf-name">{{ f.name }}</span>
+                <span class="rf-size">{{ f.size }}</span>
+              </div>
+            </div>
+
+            <!-- 这条消息指向哪里：本页和普通通知中心的区别就在这一块。
+                 消息看完不算完，能一键回到要处理的对象才算完。 -->
+            <div class="mr-target" v-if="current.target && current.target.kind !== 'none'"
+                 :class="{ done: current.extracted }">
+              <div class="mr-target-t">这条消息指向</div>
+              <div class="mr-target-row">
+                <span class="mt-ico">
+                  <app-icon :name="targetIcon" :size="16"></app-icon>
+                </span>
+                <div class="mt-body">
+                  <div class="mt-name">{{ current.target.label }}</div>
+                  <div class="mt-sub">{{ current.target.sub }}</div>
+                </div>
+                <t-button size="small" theme="primary" variant="outline" @click="goTarget">
+                  去处理
+                  <app-icon name="arrow-right" :size="13" style="margin-left:4px"></app-icon>
+                </t-button>
+              </div>
+            </div>
+
+            <!-- 只读消息明确说一句，免得学生找了半天没有按钮 -->
+            <div class="mr-target" v-else-if="!current.expired">
+              <div class="mr-target-t">这条消息指向</div>
+              <div class="mt-sub" style="font-size:12px;line-height:1.6;color:var(--ink-3)">
+                纯通知，看完就结束了，不需要你做任何事。
+              </div>
+            </div>
+
+            <!-- 同一来源的最近消息：消息不是孤立的，一条教务处通知
+                 往往会连着几条看。这块也顺手把右栏的高度撑住。 -->
+            <div class="mr-rel" v-if="related.length">
+              <div class="mr-target-t">同一来源的最近消息</div>
+              <div class="mr-rel-row" v-for="r in related" :key="r.id" @click="open(r)">
+                <span class="mi-src" :class="'s-' + r.source">{{ r.source_name }}</span>
+                <span class="mr-rel-t">{{ r.title }}</span>
+                <span class="mr-rel-time">{{ shortTime(r.created_at) }}</span>
+              </div>
+            </div>
+
+            </div>
+          </div>
+
+          <!-- 底部操作条 -->
+          <div class="msg-read-ft">
+            <t-button size="small" variant="text" :disabled="current.expired" @click="toggleRead">
+              {{ current.read ? '标为未读' : '标为已读' }}
+            </t-button>
+
+            <t-button size="small" theme="primary"
+                      v-if="canExtract && !current.extracted"
+                      @click="askExtract">
+              <app-icon name="plus" :size="14" style="margin-right:4px"></app-icon>
+              提取为任务
+            </t-button>
+
+            <span class="grow"></span>
+
+            <button class="icon-btn" title="上一条" :disabled="!prevId" @click="step(-1)">
+              <app-icon name="chev-left" :size="17"></app-icon>
+            </button>
+            <button class="icon-btn" title="下一条" :disabled="!nextId" @click="step(1)">
+              <app-icon name="chev-right" :size="17"></app-icon>
+            </button>
+          </div>
+        </template>
+
+        <div class="mr-empty" v-else>
+          <msg-icon name="inbox" :size="30" style="color:var(--ink-4)"></msg-icon>
+          <div>左边选一条消息看看。</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ================= 提取任务对话框 =================
+         设计文档明确暂缓「自动识别与任务提取」，所以这里不静默抽取：
+         先把预填的内容摆出来给人看一眼，确认了才带着参数跳任务页。
+         真实实现由 POST /api/tasks/from-notification 承担。 -->
+    <t-dialog v-model:visible="exVisible" header="从这条消息提取任务" width="520px"
+              confirm-btn="去任务页确认" cancel-btn="取消" @confirm="doExtract">
+      <template v-if="current && current.extract">
+        <p style="margin:0 0 12px;font-size:12.5px;color:var(--ink-3);line-height:1.65">
+          下面这些字段是从通知正文里预填的，跳过去之后还能改。不会自动帮你建任务。
+        </p>
+        <div class="ex-prev">
+          <div class="ex-row">
+            <th>标题</th>
+            <td>{{ current.extract.title }}</td>
+          </div>
+          <div class="ex-row">
+            <th>课程</th>
+            <td>{{ current.extract.course_name || '不关联课程' }}</td>
+          </div>
+          <div class="ex-row">
+            <th>截止</th>
+            <td>{{ current.extract.date }} {{ current.extract.due }}</td>
+          </div>
+          <div class="ex-row">
+            <th>说明</th>
+            <td>{{ current.extract.description }}</td>
+          </div>
+          <div class="ex-row">
+            <th>来源</th>
+            <td>{{ current.source_name }} · 消息 #{{ current.id }}</td>
+          </div>
+        </div>
+      </template>
+    </t-dialog>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>
+(function () {
+  const C = window.APP_CONFIG;
+
+  /* 关键词匹配统一走全局搜索的口径：连续命中 + 简称（搜「高数」也能出
+     「高等数学」）。不这么干，面板说「消息 3 条」、点进来却是 0 条。 */
+  function kwHit(text, kw) {
+    const S = window.AppSearch;
+    if (S && S.hit) return S.hit(text, kw);
+    return String(text == null ? '' : text).toLowerCase().indexOf(kw) >= 0;
+  }
+
+  /* ---------- 图标 ----------
+     shell.js 的图标库里没有文件 / 收件箱这两个，消息页自己补，
+     不去动全站图标表 */
+  const MSG_ICONS = {
+    file: '<path d="M6.6 3.8h6.8L18 8.4V20H6.6z"/><path d="M13.4 3.8v4.6H18"/>',
+    inbox: '<path d="M3.8 12.6h4.3l1.5 2.6h4.8l1.5-2.6h4.3"/><path d="M6.2 5.2h11.6l2.4 7.4v5.4H3.8v-5.4z"/>'
+  };
+
+  const MsgIcon = {
+    name: 'MsgIcon',
+    props: {
+      name: { type: String, default: 'inbox' },
+      size: { type: [Number, String], default: 16 }
+    },
+    computed: {
+      inner() { return MSG_ICONS[this.name] || MSG_ICONS.inbox; }
+    },
+    template:
+      '<svg :width="size" :height="size" viewBox="0 0 24 24" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ' +
+      'style="display:block;flex:0 0 auto" v-html="inner"></svg>'
+  };
+
+  /* ---------- 来源配色 ----------
+     四个来源四色，全部取自现有色板：
+     教务=深蓝（公告感）/ 课程=香槟金（老师）/ 系统=重邮青（本系统算的）/ AI=橙 */
+  const SRC = [
+    { key: 'academic', label: '教务在线', color: 'var(--indigo)' },
+    { key: 'course',   label: '课程通知', color: 'var(--warm-deep)' },
+    { key: 'system',   label: '系统提醒', color: 'var(--brand-7)' },
+    { key: 'ai',       label: 'AI 规划',  color: 'var(--alert)' }
+  ];
+
+  const TARGET_ICON = {
+    task: 'list',
+    schedule: 'calendar',
+    plan: 'sparkle',
+    library: 'book'
+  };
+
+  mountApp({
+    components: { 'msg-icon': MsgIcon },
+
+    data() {
+      /* 拿副本做响应式数据，改完调 NotifyStore.patch 写回并广播，
+         顶栏铃铛的角标靠 notify:change 事件跟着变 */
+      return {
+        all: window.NotifyStore.list(),
+        tab: 'all',
+        fSrc: 'all',
+        q: '',
+        currentId: null,
+        exVisible: false
+      };
+    },
+
+    computed: {
+      /* 返回浅拷贝，不直接返回 MOCK 里的对象。
+         NotifyStore 改的是原始对象，绕过了 Vue 的 proxy，
+         同一个引用会让 computed 认为「没变」而不重渲染
+         （表现是：标了已读，未读计数变了，但按钮上还写着标为已读）。 */
+      current() {
+        const id = this.currentId;
+        const hit = this.all.filter(function (m) { return m.id === id; })[0];
+        return hit ? Object.assign({}, hit) : null;
+      },
+
+      unreadCount() {
+        return this.all.filter(function (m) { return !m.read && !m.expired; }).length;
+      },
+      readCount() {
+        return this.all.filter(function (m) { return m.read && !m.expired; }).length;
+      },
+      expiredCount() {
+        return this.all.filter(function (m) { return m.expired; }).length;
+      },
+
+      srcChips() {
+        const self = this;
+        return SRC.map(function (s) {
+          return {
+            key: s.key,
+            label: s.label,
+            color: s.color,
+            count: self.all.filter(function (m) { return m.source === s.key; }).length
+          };
+        });
+      },
+
+      shown() {
+        const self = this;
+        let list = this.all.slice();
+
+        if (this.tab === 'unread')  list = list.filter(function (m) { return !m.read && !m.expired; });
+        if (this.tab === 'read')    list = list.filter(function (m) { return m.read && !m.expired; });
+        if (this.tab === 'expired') list = list.filter(function (m) { return m.expired; });
+
+        if (this.fSrc !== 'all') list = list.filter(function (m) { return m.source === self.fSrc; });
+
+        const kw = this.q.trim().toLowerCase();
+        if (kw) {
+          list = list.filter(function (m) {
+            return kwHit(m.title, kw) || kwHit(m.summary, kw) ||
+              kwHit(m.body, kw) || kwHit(m.source_name, kw);
+          });
+        }
+
+        list.sort(function (a, b) {
+          return a.created_at < b.created_at ? 1 : (a.created_at > b.created_at ? -1 : b.id - a.id);
+        });
+        return list;
+      },
+
+      tabName() {
+        return { all: '全部消息', unread: '未读消息', read: '已读消息', expired: '已失效' }[this.tab] || '消息';
+      },
+
+      headLine() {
+        const parts = [this.all.length + ' 条消息', this.unreadCount + ' 条未读'];
+        if (this.expiredCount) parts.push(this.expiredCount + ' 条已失效');
+        return parts.join(' · ') + ' · 教务在线、课程通知、系统提醒、AI 规划汇总在这里';
+      },
+
+      hasFilter() {
+        return !!(this.q.trim() || this.fSrc !== 'all' || this.tab !== 'all');
+      },
+
+      emptyText() {
+        if (this.q.trim()) return '没有匹配「' + this.q.trim() + '」的消息。';
+        if (this.tab === 'unread') return '没有未读消息了，都处理干净了。';
+        if (this.tab === 'expired') return '没有已失效的消息。';
+        return '没有符合当前条件的消息，换个筛选试试。';
+      },
+
+      paras() {
+        if (!this.current || !this.current.body) return [];
+        return String(this.current.body).split('\n\n');
+      },
+
+      targetIcon() {
+        if (!this.current || !this.current.target) return 'info';
+        return TARGET_ICON[this.current.target.kind] || 'info';
+      },
+
+      /* 只有教务 / 课程这类外部来的通知才谈得上「提取」；
+         系统提醒和 AI 规划本身就是系统算出来的，不需要再抽一遍 */
+      canExtract() {
+        const m = this.current;
+        return !!(m && m.extract && (m.source === 'academic' || m.source === 'course'));
+      },
+
+      /* 同一来源的最近几条，失效的不算（那是已经不用管的历史） */
+      related() {
+        if (!this.current) return [];
+        const cur = this.current;
+        return this.all
+          .filter(function (m) { return m.source === cur.source && m.id !== cur.id && !m.expired; })
+          .sort(function (a, b) { return a.created_at < b.created_at ? 1 : -1; })
+          .slice(0, 3);
+      },
+
+      prevId() {
+        return this.neighbor(-1);
+      },
+      nextId() {
+        return this.neighbor(1);
+      }
+    },
+
+    methods: {
+      /* 列表里的时间：今天只给时分，昨天给「昨天」，再早就给月/日 */
+      shortTime(s) {
+        const today = window.MOCK.today;          // 2026-11-18
+        const day = String(s).slice(0, 10);
+        const hm = String(s).slice(11);
+        if (day === today) return hm;
+        if (day === window.AppUtil.addDays(today, -1)) return '昨天 ' + hm;
+        return day.slice(5).replace('-', '/') + ' ' + hm;
+      },
+
+      neighbor(dir) {
+        const list = this.shown;
+        const idx = list.findIndex((m) => this.current && m.id === this.current.id);
+        if (idx < 0) return 0;
+        const hit = list[idx + dir];
+        return hit ? hit.id : 0;
+      },
+
+      open(m) {
+        this.currentId = m.id;
+      },
+
+      step(dir) {
+        const id = this.neighbor(dir);
+        if (id) this.currentId = id;
+      },
+
+      /* 点开不自动标已读：未读代表「还没处理完」，一句公告也可能只是路过看一眼。
+         要让未读真正清零，得自己点一下。 */
+      toggleRead() {
+        if (!this.current) return;
+        this.write(this.current.id, { read: !this.current.read });
+      },
+
+      markAll() {
+        const left = window.NotifyStore.markAllRead();
+        this.sync();
+        TDesign.MessagePlugin.success(left ? '还剩 ' + left + ' 条未读' : '全部标为已读了');
+      },
+
+      onTabChange() {
+        /* 切筛选之后原来选中的那条可能已经不在列表里，落到第一条 */
+        const first = this.shown[0];
+        this.currentId = first ? first.id : null;
+      },
+
+      goTarget() {
+        const t = this.current && this.current.target;
+        if (!t) return;
+        if (t.kind === 'task')     { location.href = 'tasks.html?id=' + t.object_id; return; }
+        if (t.kind === 'schedule') { location.href = 'schedule.html'; return; }
+        if (t.kind === 'plan')     { location.href = 'ai-plan.html'; return; }
+        if (t.kind === 'library')  { location.href = 'library.html' + (t.object_id ? '?open=' + t.object_id : ''); return; }
+      },
+
+      askExtract() {
+        if (!this.canExtract) return;
+        this.exVisible = true;
+      },
+
+      /* 提取：标记消息已提取，把预填字段带到任务页的新建抽屉。
+         任务页读 ?new=1&from=<消息id> 时回填这些参数。 */
+      doExtract() {
+        const m = this.current;
+        if (!m || !m.extract) return;
+        const e = m.extract;
+
+        this.write(m.id, { read: true, extracted: true });
+
+        const qs = new URLSearchParams({
+          new: '1',
+          from: String(m.id),
+          title: e.title,
+          course: e.course_name || '',
+          date: e.date || '',
+          due: e.due || '',
+          desc: e.description || ''
+        });
+        location.href = 'tasks.html?' + qs.toString();
+      },
+
+      write(id, fields) {
+        window.NotifyStore.patch(id, fields);
+        this.sync();
+      },
+
+      /* 重新取一次副本。NotifyStore 改的是 MOCK 里的对象，
+         这里要换成本地数组才会触发重算 */
+      sync() {
+        const id = this.currentId;
+        this.all = window.NotifyStore.list();
+        if (id && !this.all.filter((m) => m.id === id).length) this.currentId = null;
+      },
+
+      openFile(f) {
+        TDesign.MessagePlugin.info('演示环境不打开附件：' + f.name + '（' + f.size + '）');
+      },
+
+      resetFilter() {
+        this.tab = 'all';
+        this.fSrc = 'all';
+        this.q = '';
+        this.onTabChange();
+      }
+    },
+
+    mounted() {
+      document.title = '消息与通知 · ' + C.brand.name;
+
+      /* 默认选中未读里最新的一条；都读完了就选最新一条。
+         直接落在第一条上，比给个空阅读区少一次点击。 */
+      const first = this.all
+        .filter(function (m) { return !m.read && !m.expired; })
+        .sort(function (a, b) { return a.created_at < b.created_at ? 1 : -1; })[0]
+        || this.shown[0];
+      if (first) this.currentId = first.id;
+
+      /* 深链接：?id=8 直接打开某条，跟任务页 ?id= 一个路子
+         ?q=关键词 从顶栏搜索「查看全部」过来 */
+      const qs = new URLSearchParams(location.search);
+      const openId = Number(qs.get('id'));
+      if (openId) {
+        const hit = this.all.filter(function (m) { return m.id === openId; })[0];
+        if (hit) this.currentId = hit.id;
+      }
+      if (qs.get('q')) {
+        this.q = qs.get('q');
+        /* 筛完若当前这条被过滤掉了，落到第一条结果上，别留个空阅读区 */
+        if (this.shown.length && !this.shown.some((m) => m.id === this.currentId)) {
+          this.currentId = this.shown[0].id;
+        }
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

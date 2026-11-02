@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI 学习规划</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<!-- in-DOM 模板：自定义标签必须显式闭合，不能写 <app-icon /> -->
+<div id="app">
+  <app-shell active="plan">
+
+    <!-- ================= 页头 ================= -->
+    <div class="page-head">
+      <div>
+        <h1>AI 学习规划</h1>
+        <p>说一句需求就能生成计划；AI 只在你课程和已有日程之外的空档里安排，没确认的时段用虚线标出</p>
+      </div>
+      <div class="ph-right">
+        <span class="plan-stamp">上次规划 {{ stampText }}</span>
+        <t-button variant="outline" @click="newChat">
+          <app-icon name="sparkle" :size="15" style="margin-right:4px"></app-icon>重新规划
+        </t-button>
+      </div>
+    </div>
+
+    <div class="plan-wrap">
+
+      <!-- ================= 左：对话 ================= -->
+      <div class="chat">
+
+        <div class="chat-hd">
+          <div class="avt ai"><app-icon name="sparkle" :size="14"></app-icon></div>
+          <div class="ch-meta">
+            <b>规划助手</b>
+            <span>{{ chatSub }}</span>
+          </div>
+          <div class="ch-act">
+            <button title="历史对话" @click="openHistory">
+              <app-icon name="clock" :size="16"></app-icon>
+            </button>
+            <button title="新对话" @click="newChat">
+              <app-icon name="plus" :size="16"></app-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="msgs" ref="msgBox">
+          <div v-for="m in msgs" :key="m.id">
+
+            <!-- 解析条：把这句话理解成了什么，直接摊开，可改 -->
+            <div class="under" v-if="m.kind === 'parse'">
+              <app-icon name="check" :size="12" style="color:var(--brand-6)"></app-icon>
+              <span class="u-line">
+                已理解 · <b>{{ rangeShortOf(m.p.range) }}</b> ·
+                <b :class="{ warn: !m.p.taskIds.length }">{{ m.p.taskIds.length ? m.p.taskIds.length + ' 项任务' : '任务未指定' }}</b> ·
+                <b>{{ m.p.cap ? '每天 ' + capText(m.p.cap) : '时长未设' }}</b>
+              </span>
+              <span class="u-act" @click="openPick('param')">修改</span>
+            </div>
+
+            <!-- 对话气泡 -->
+            <div class="msg" :class="{ me: m.role === 'me' }" v-else>
+              <div class="avt" :class="m.role">
+                <app-icon v-if="m.role === 'ai'" name="sparkle" :size="14"></app-icon>
+                <template v-else>{{ user.name[0] }}</template>
+              </div>
+              <div class="bub">
+                <p v-for="(p, i) in m.paras" :key="i">{{ p }}</p>
+
+                <div class="b-facts" v-if="m.facts">
+                  <span v-for="f in m.facts" :key="f">{{ f }}</span>
+                </div>
+
+                <div class="b-opts" v-if="m.opts && m.opts.length">
+                  <button v-for="o in m.opts" :key="o.key" class="b-opt"
+                          :class="{ done: o.done }" :disabled="o.done"
+                          @click="pickOpt(m, o)">{{ o.label }}</button>
+                </div>
+
+                <div class="b-sum" v-if="m.sum">
+                  <div><b>{{ m.sum.count }}</b> 个时段</div>
+                  <div>共 <b>{{ m.sum.hours }}</b></div>
+                  <div>最后排到 <b>{{ m.sum.last }}</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入区：文本是唯一入口，按钮只负责往这句话里塞内容 -->
+        <div class="composer">
+          <div class="att-bar" v-if="attach.length">
+            <span class="att" v-for="t in attach" :key="t.id">
+              <span>{{ t.title }}</span>
+              <button @click="dropAttach(t.id)" title="移除">
+                <app-icon name="plus" :size="11" style="transform:rotate(45deg)"></app-icon>
+              </button>
+            </span>
+          </div>
+
+          <div class="cp-box">
+            <textarea v-model="draftText" rows="1" ref="input"
+                      placeholder="例如：帮我安排这周的学习"
+                      @keydown.enter.exact.prevent="send"
+                      @input="autoGrow"></textarea>
+            <button class="cp-send" :disabled="!draftText.trim() && !attach.length" @click="send" title="发送">
+              <app-icon name="arrow-right" :size="15"></app-icon>
+            </button>
+          </div>
+
+          <div class="cq-row">
+            <button class="cq" @click="openPick()">
+              <app-icon name="list" :size="13"></app-icon>选择待办任务
+            </button>
+            <button class="cq" @click="sendText('安排即将截止的任务')">
+              <app-icon name="clock" :size="13"></app-icon>安排即将截止的
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 右：候选计划 ================= -->
+      <div class="card result">
+        <div class="card-hd">
+          <app-icon name="calendar" :size="16" style="color:var(--brand-7)"></app-icon>
+          <h2>{{ hasPlan ? '本次规划' : '本周空档' }}</h2>
+          <span class="hd-sub" v-if="hasPlan">第 {{ version }} 版 · 未确认</span>
+          <div class="hd-act">
+            <t-button variant="text" size="small" @click="openPick('param')">
+              {{ rangeLabel(parsed.range) }}
+              <app-icon name="chev-down" :size="13" style="margin-left:3px"></app-icon>
+            </t-button>
+          </div>
+        </div>
+
+        <!-- 四格摘要：每个数字都能点开看是怎么算的 -->
+        <div class="summary tight">
+          <div class="sum-cell" @click="openPick('param')">
+            <div class="sum-ico teal"><app-icon name="calendar" :size="15"></app-icon></div>
+            <div class="sum-body">
+              <div class="sum-label">范围</div>
+              <div class="sum-val">{{ rangeShort }}</div>
+            </div>
+          </div>
+          <div class="sum-cell" @click="explain('tasks')">
+            <div class="sum-ico navy"><app-icon name="list" :size="15"></app-icon></div>
+            <div class="sum-body">
+              <div class="sum-label">涉及任务</div>
+              <div class="sum-val">{{ parsed.taskIds.length }} 项</div>
+            </div>
+          </div>
+          <div class="sum-cell" @click="explain('hours')">
+            <div class="sum-ico gold"><app-icon name="clock" :size="15"></app-icon></div>
+            <div class="sum-body">
+              <div class="sum-label">计划时长</div>
+              <div class="sum-val">{{ planHours }}</div>
+            </div>
+          </div>
+          <div class="sum-cell" @click="explain('last')">
+            <div class="sum-ico orange"><app-icon name="check" :size="15"></app-icon></div>
+            <div class="sum-body">
+              <div class="sum-label">最后排入</div>
+              <div class="sum-val">{{ planLast }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 冲突：课程与已确认日程之间、候选与已有之间都算 -->
+        <div class="conflict-bar inline" v-if="conflicts.length">
+          <app-icon name="warning" :size="16" style="color:var(--red)"></app-icon>
+          <div class="cf-txt">
+            <b>{{ conflicts.length }} 处时间重叠</b>
+            <span>：{{ conflicts[0] }}</span>
+          </div>
+          <t-button variant="text" theme="danger" size="small" @click="conflictHint">怎么处理</t-button>
+        </div>
+
+        <!-- 按天铺开 -->
+        <div class="card-bd scroll" ref="planBox">
+          <div class="plan-list">
+            <div v-for="g in dayGroups" :key="g.date">
+              <div class="day-hd" :class="{ today: g.isToday, folded: !isOpen(g) }"
+                   @click="toggleDay(g)">
+                <app-icon name="chev-down" :size="12" class="dh-ar"></app-icon>
+                <b>{{ g.label }}</b>
+                <span v-if="g.isToday" class="dh-now">今天</span>
+                <span class="dh-line"></span>
+                <span class="dh-n warn" v-if="g.hasConflict">1 处重叠</span>
+                <span class="dh-n">{{ g.items.length ? g.items.length + ' 项' : '空档' }}</span>
+              </div>
+
+              <div v-show="isOpen(g)">
+                <div v-for="b in g.items" :key="b.uid" class="pb"
+                     :class="[b.cls, { conflict: b.conflict }]" :title="b.full">
+                  <span class="pb-t">{{ b.time }}</span>
+                  <div class="pb-b">
+                    <div class="pb-n">{{ b.title }}<span class="pb-m" v-if="b.meta">{{ b.meta }}</span></div>
+                  </div>
+                  <div class="pb-r">
+                    <span class="tag risk" v-if="b.conflict">重叠</span>
+                    <span class="pb-new" v-else-if="b.cls === 'proposed'">待确认</span>
+                    <span class="pb-src" v-else-if="b.cls === 'fixed'">教务</span>
+                  </div>
+                </div>
+
+                <div class="day-empty" v-if="!g.items.length">这天没有安排</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-ft result-ft">
+          <span class="ft-hint" v-if="!hasPlan">在左边说一句需求，或者先挑任务</span>
+          <template v-else>
+            <t-button variant="outline" @click="regenerate">重新生成</t-button>
+            <t-button variant="outline" @click="saveDraft">保存草稿</t-button>
+            <t-button theme="primary" v-if="!confirmed" @click="confirmPlan">确认计划</t-button>
+            <t-button theme="primary" v-else @click="goSchedule">
+              查看日程<app-icon name="arrow-right" :size="14" style="margin-left:4px"></app-icon>
+            </t-button>
+          </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 历史对话 ================= -->
+    <t-dialog v-model:visible="histVisible" header="历史对话" width="430px" :footer="false">
+      <div class="hist-list">
+        <div v-for="c in histList" :key="c.id" class="hist-row"
+             :class="{ on: c.id === curId }" @click="switchChat(c.id)">
+          <div class="hist-b">
+            <div class="hist-n" :title="c.title">{{ c.title }}</div>
+            <div class="hist-s">{{ c.at }} · {{ chatBrief(c) }}</div>
+          </div>
+          <span class="hist-cur" v-if="c.id === curId">当前</span>
+        </div>
+        <div class="hist-empty" v-if="!histList.length">还没有历史对话</div>
+      </div>
+      <div class="dlg-act">
+        <t-button theme="primary" @click="newChat">新建对话</t-button>
+      </div>
+    </t-dialog>
+
+    <!-- ================= 结构化输入：范围 / 上限 / 任务 ================= -->
+    <t-dialog v-model:visible="pickVisible" header="选择任务与条件" width="520px"
+              confirm-btn="生成计划" cancel-btn="取消" @confirm="applyPick">
+      <div class="pick-sec">
+        <div class="pick-t">时间范围</div>
+        <t-select v-model="pickRange" :options="rangeOptions" style="width:100%"></t-select>
+      </div>
+
+      <div class="pick-sec">
+        <div class="pick-t">每天最多学多久<span class="pick-hint">超出部分自动顺延到后一天</span></div>
+        <t-select v-model="pickCap" :options="capOptions" style="width:100%"></t-select>
+      </div>
+
+      <div class="pick-sec">
+        <div class="pick-t">要排的任务<span class="pick-hint">{{ openTasks.length }} 项未完成</span></div>
+        <div class="pick-list">
+          <div v-for="t in openTasks" :key="t.id" class="pick-row"
+               :class="{ on: pickSel.indexOf(t.id) > -1 }" @click="togglePick(t.id)">
+            <span class="pk-box" :class="{ on: pickSel.indexOf(t.id) > -1 }">
+              <app-icon v-if="pickSel.indexOf(t.id) > -1" name="check" :size="11"></app-icon>
+            </span>
+            <div class="pr-b">
+              <div class="pr-n">{{ t.title }}</div>
+              <div class="pr-s">
+                {{ t.date ? U.mmdd(t.date) + ' ' + t.due + ' 截止' : '无截止时间' }} · {{ U.durText(t.estimated_minutes) }}
+              </div>
+            </div>
+            <span class="pr-done" v-if="bookedOf(t.id) >= t.estimated_minutes">已排满</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-tip">
+        选完点「生成计划」，等于替你把这句话说出来：「按已选任务，在{{ rangeShort }}的空档里排，每天不超过{{ capText(pickCap) }}」。以后也可以不打字，直接用这几个控件。
+      </div>
+    </t-dialog>
+
+    <!-- ================= 数字怎么算出来的 ================= -->
+    <t-dialog v-model:visible="explainVisible" :header="explainData.title" width="440px" :footer="false">
+      <div class="ex-body">
+        <div class="ex-row" v-for="r in explainData.rows" :key="r[0]">
+          <span>{{ r[0] }}</span><b>{{ r[1] }}</b>
+        </div>
+      </div>
+      <div class="dlg-note" v-if="explainData.note">{{ explainData.note }}</div>
+      <div class="dlg-act">
+        <t-button theme="primary" @click="explainVisible = false">知道了</t-button>
+      </div>
+    </t-dialog>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>
+(function () {
+  const C = window.APP_CONFIG;
+  const M = window.MOCK;
+  const ES = window.EventStore;
+  const U = window.AppUtil;
+
+  const WEEK = 12;
+  const TODAY = M.today;                 // 2026-11-18 周三
+  const WEEK_START = '2026-11-16';
+  const WEEK_END = '2026-11-22';
+  const NOW_MIN = 16 * 60 + 40;          // 和日程页同一个「现在」
+  const PLAN_ID_NEW = 9;                 // 本次规划的 plan id
+  const STALE_PLAN = 5;                  // mock 里那份没确认的旧候选，生成时替换掉
+  const STEP = 15;                       // 排程粒度：15 分钟
+  const MIN_BLOCK = 30;
+
+  const DOW = ['日', '一', '二', '三', '四', '五', '六'];
+
+  /* 演示用的关键词表。真实实现由后端意图接口判定，
+     前端只负责在拿到结果后画那条「已理解」的解析条。 */
+  const KW = {
+    1: ['高数作业', '高等数学作业', '高数', '数学作业'],
+    2: ['数据结构实验报告', '数据结构实验', '数据结构'],
+    3: ['计算机网络实验', '网络实验', '计算机网络'],
+    4: ['高数习题', '第三章', '导数与微分'],
+    5: ['英语六级', '六级', '词汇', '背单词'],
+    6: ['操作系统', '进程调度'],
+    7: ['物理期中', '物理复习', '大学物理', '物理'],
+    8: ['数据库实验', '数据库', '预习报告'],
+    9: ['课程设计', '选题']
+  };
+
+  let uid = 0;
+  const nextId = function () { return ++uid; };
+
+  const CHAT_KEY = 'uniflow.proto.chats.v1';
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  mountApp({
+    data() {
+      return {
+        U: U,
+        user: C.demoUser,
+        week: WEEK,
+
+        tasks: M.tasks.slice(),
+        courses: M.courses,
+        events: ES.events(),
+        sessions: ES.sessions(),
+
+        msgs: [],
+        draftText: '',
+        attach: [],
+        parsed: { range: 'week', taskIds: [], cap: 0 },
+        cand: [],
+        unplanned: [],
+        confirmed: false,
+        version: 1,
+        hasPlan: false,
+        stage: 'idle',
+        missing: null,
+        openMap: {},
+
+        chats: [],
+        curId: null,
+        histVisible: false,
+
+        stampText: '11/15 21:04',
+
+        pickVisible: false,
+        pickRange: 'week',
+        pickCap: 180,
+        pickSel: [],
+
+        explainVisible: false,
+        explainData: { title: '', rows: [], note: '' }
+      };
+    },
+
+    computed: {
+      openTasks() {
+        return this.tasks.filter(function (t) {
+          return t.status === 'pending' || t.status === 'in_progress';
+        });
+      },
+
+      rangeOptions() {
+        return [
+          { label: '本周 11/16 – 11/22', value: 'week' },
+          { label: '下周 11/23 – 11/29', value: 'next' },
+          { label: '仅今晚', value: 'today' }
+        ];
+      },
+
+      capOptions() {
+        return [
+          { label: '每天 1 小时', value: 60 },
+          { label: '每天 2 小时', value: 120 },
+          { label: '每天 3 小时', value: 180 },
+          { label: '每天 4 小时', value: 240 },
+          { label: '不设上限', value: 0 }
+        ];
+      },
+
+      rangeShort() {
+        if (this.parsed.range === 'next') return '11/23 – 11/29';
+        if (this.parsed.range === 'today') return '今晚';
+        return '11/16 – 11/22';
+      },
+
+      /* 历史列表只列有内容的对话；当前这条哪怕还空着也留着，让人知道自己在哪 */
+      histList() {
+        const self = this;
+        return this.chats.filter(function (c) {
+          return c.id === self.curId ||
+            (c.msgs || []).some(function (m) { return m.role === 'me'; });
+        });
+      },
+
+      /* 对话卡片头上的状态说明：这条对话什么时候开的、进展到哪 */
+      chatSub() {        const self = this;
+        const c = this.chats.find(function (x) { return x.id === self.curId; });
+        if (!c) return '';
+        return c.at + ' · ' + self.chatBrief(c);
+      },      /* 右侧按天铺开：课程 + 已有日程 + 本次候选 */
+      dayGroups() {
+        const self = this;
+        const out = [];
+
+        const dates = [];
+        if (this.parsed.range === 'today') {
+          dates.push(TODAY);
+        } else {
+          const start = this.parsed.range === 'next' ? U.addDays(WEEK_START, 7) : WEEK_START;
+          for (let i = 0; i < 7; i++) dates.push(U.addDays(start, i));
+        }
+
+        dates.forEach(function (date) {
+          const dow = U.dowOf(date);
+          const items = [];
+
+          /* 课程：教务导入，不可动 */
+          self.courses.forEach(function (c) {
+            const wd = dow === 0 ? 7 : dow;
+            if (c.weekday !== wd) return;
+            if (WEEK < c.start_week || WEEK > c.end_week) return;
+            items.push({
+              uid: 'c' + c.id + date,
+              cls: 'fixed',
+              title: c.name,
+              meta: c.classroom,
+              full: c.name + ' · ' + c.classroom + ' · 教务导入，不可改',
+              time: c.start_time + '–' + c.end_time,
+              s: U.hm(c.start_time), e: U.hm(c.end_time)
+            });
+          });
+
+          /* 已有日程：已确认的学习时段、个人日程、考试 */
+          self.events.forEach(function (ev) {
+            if (ev.date !== date) return;
+            const t = ev.task_id ? self.tasks.find(function (x) { return x.id === ev.task_id; }) : null;
+            const title = ev.title || (t ? t.title : '安排');
+            let cls = 'personal';
+            if (ev.event_type === 'study') cls = 'study';
+            else if (ev.event_type === 'exam') cls = 'exam';
+            const dur = U.durText(U.hm(ev.end) - U.hm(ev.start));
+            items.push({
+              uid: 'e' + ev.id,
+              cls: cls,
+              title: title,
+              meta: ev.location || dur,
+              full: title + ' · ' + ev.start + '–' + ev.end + '（' + dur + '）' + (ev.location ? ' · ' + ev.location : ''),
+              time: ev.start + '–' + ev.end,
+              s: U.hm(ev.start), e: U.hm(ev.end)
+            });
+          });
+
+          /* 本次候选：未确认的用虚线 */
+          self.cand.forEach(function (b) {
+            if (b.date !== date) return;
+            const dur = U.durText(b.minutes);
+            items.push({
+              uid: 'p' + b.task_id + b.start,
+              cls: 'proposed',
+              title: b.title,
+              meta: dur,
+              full: b.title + ' · ' + b.start + '–' + b.end + '（' + dur + '）· 待确认',
+              time: b.start + '–' + b.end,
+              s: b.s, e: b.e
+            });
+          });
+
+          items.sort(function (a, b) { return a.s - b.s || a.e - b.e; });
+
+          /* 冲突：候选之间不互相比（本来就还没生效），候选撞上已有的照样报 */
+          for (let i = 0; i < items.length; i++) {
+            for (let j = i + 1; j < items.length; j++) {
+              const a = items[i], b = items[j];
+              if (a.cls === 'proposed' && b.cls === 'proposed') continue;
+              if (!(a.s < b.e && b.s < a.e)) continue;
+              a.conflict = true;
+              b.conflict = true;
+            }
+          }
+
+          out.push({
+            date: date,
+            label: U.mmdd(date) + ' 周' + DOW[dow],
+            isToday: date === TODAY,
+            hasCand: items.some(function (x) { return x.cls === 'proposed'; }),
+            hasConflict: items.some(function (x) { return x.conflict; }),
+            items: items
+          });
+        });
+
+        return out;
+      },
+
+      conflicts() {
+        const seen = {};
+        const out = [];
+        const self = this;
+        this.dayGroups.forEach(function (g) {
+          const hit = g.items.filter(function (x) { return x.conflict; });
+          for (let i = 0; i < hit.length; i++) {
+            for (let j = i + 1; j < hit.length; j++) {
+              const a = hit[i], b = hit[j];
+              if (!(a.s < b.e && b.s < a.e)) continue;
+              const key = [a.uid, b.uid].sort().join('|');
+              if (seen[key]) continue;
+              seen[key] = 1;
+              out.push(U.mmdd(g.date) + ' ' + U.fmt(Math.max(a.s, b.s)) + '–' + U.fmt(Math.min(a.e, b.e)) +
+                ' 「' + a.title + '」与「' + b.title + '」重叠');
+            }
+          }
+        });
+        return out;
+      },
+
+      planMinutes() {
+        return this.cand.reduce(function (s, b) { return s + b.minutes; }, 0);
+      },
+
+      planHours() {
+        if (!this.cand.length) return '—';
+        return U.durText(this.planMinutes);
+      },
+
+      planLast() {
+        if (!this.cand.length) return '—';
+        const last = this.cand[this.cand.length - 1];
+        return U.mmdd(last.date);
+      }
+    },
+
+    methods: {
+      /* ---------- 对话管理：历史 / 新建 ---------- */
+      loadChats() {
+        try {
+          const raw = sessionStorage.getItem(CHAT_KEY);
+          if (!raw) return [];
+          const v = JSON.parse(raw);
+          return Array.isArray(v) ? v : [];
+        } catch (e) { return []; }
+      },
+
+      persistChats() {
+        try { sessionStorage.setItem(CHAT_KEY, JSON.stringify(this.chats)); } catch (e) {}
+      },
+
+      blankChat() {
+        return {
+          id: 'c' + Date.now(),
+          title: '新对话',
+          at: this.nowText(),
+          msgs: [],
+          parsed: { range: 'week', taskIds: [], cap: 0 },
+          cand: [],
+          hasPlan: false,
+          confirmed: false,
+          version: 1
+        };
+      },
+
+      /* 演示口径的「现在」，用 mock 的日期，避免和学期周次打架 */
+      nowText() {
+        const base = U.NOW + this.chats.length * 3;
+        return U.mmdd(TODAY) + ' ' + U.fmt(base % 1440);
+      },
+
+      /* 预置一条已确认的历史，让「历史对话」一进来就有东西可点 */
+      seedChats() {
+        return [{
+          id: 'seed-1',
+          title: '第 12 周的学习安排',
+          at: '11/15 21:04',
+          msgs: [
+            { id: 9001, role: 'me', paras: ['帮我安排这周的学习，先把高数作业和数据结构实验排上'] },
+            {
+              id: 9002, role: 'ai',
+              paras: ['排好了。截止最近的先占位置，剩下的顺着空档往后放；课程和已确认的时段都绕开了。'],
+              sum: { count: 4, hours: '6 小时 30 分', last: '11/21' }
+            }
+          ],
+          parsed: { range: 'week', taskIds: [1, 2], cap: 180 },
+          cand: [],
+          hasPlan: false,
+          confirmed: true,
+          version: 2
+        }];
+      },
+
+      bootChats() {
+        let list = this.loadChats();
+        if (!list.length) list = this.seedChats();
+
+        const head = list[0];
+        const headEmpty = head && (head.msgs || []).filter(function (m) { return m.role === 'me'; }).length === 0;
+
+        this.chats = list;
+
+        /* 上次那条如果还是空的就接着用，别堆一堆空对话 */
+        if (headEmpty) {
+          this.curId = head.id;
+          this.restore(head);
+        } else {
+          const c = this.blankChat();
+          this.chats.unshift(c);
+          this.curId = c.id;
+          this.restore(c);
+        }
+        this.persistChats();
+      },
+
+      restore(c) {
+        const self = this;
+        this.msgs = clone(c.msgs || []);
+        this.parsed = clone(c.parsed || { range: 'week', taskIds: [], cap: 0 });
+        this.cand = clone(c.cand || []);
+        this.hasPlan = !!c.hasPlan;
+        this.confirmed = !!c.confirmed;
+        this.version = c.version || 1;
+        this.unplanned = [];
+        this.attach = [];
+        this.draftText = '';
+        this.openMap = {};
+        this.histVisible = false;
+
+        if (!this.msgs.length) this.initChat();
+
+        this.$nextTick(function () {
+          self.scrollBottom();
+          self.autoGrow();
+          const box = self.$refs.planBox;
+          if (box) box.scrollTop = 0;
+          if (self.cand.length) self.scrollToCand();
+        });
+      },
+
+      saveChat() {
+        const self = this;
+        const c = this.chats.find(function (x) { return x.id === self.curId; });
+        if (!c) return;
+        c.msgs = clone(this.msgs);
+        c.parsed = clone(this.parsed);
+        c.cand = clone(this.cand);
+        c.hasPlan = this.hasPlan;
+        c.confirmed = this.confirmed;
+        c.version = this.version;
+        /* 时间只在真的有新动作时更新，单纯翻看不改历史记录 */
+        this.persistChats();
+      },
+
+      newChat() {
+        const self = this;
+        const cur = this.chats.find(function (x) { return x.id === self.curId; });
+        const said = (cur && cur.msgs ? cur.msgs : this.msgs).filter(function (m) { return m.role === 'me'; });
+        if (!said.length) {
+          this.histVisible = false;
+          TDesign.MessagePlugin.info('已经在一个新对话里了');
+          return;
+        }
+
+        this.saveChat();
+        const c = this.blankChat();
+        this.chats.unshift(c);
+        this.curId = c.id;
+        this.restore(c);
+        this.persistChats();
+      },
+
+      openHistory() {
+        this.saveChat();
+        this.histVisible = true;
+      },
+
+      switchChat(id) {
+        if (id === this.curId) { this.histVisible = false; return; }
+        this.saveChat();
+        const self = this;
+        const c = this.chats.find(function (x) { return x.id === id; });
+        if (!c) return;
+        this.curId = id;
+        this.restore(c);
+      },
+
+      chatBrief(c) {
+        const said = (c.msgs || []).filter(function (m) { return m.role === 'me'; });
+        if (!said.length) return '还没开始';
+        if (c.confirmed) return '计划已确认';
+        if (c.cand && c.cand.length) return c.cand.length + ' 个时段待确认';
+        if (c.parsed && c.parsed.taskIds.length) return c.parsed.taskIds.length + ' 项任务';
+        return '对话中';
+      },
+
+      /* ---------- 对话 ---------- */
+      push(m) {
+        m.id = nextId();
+        this.msgs.push(m);
+        this.scrollBottom();
+      },
+
+      say(role, data) {
+        const m = Object.assign({ role: role, paras: [] }, data);
+        this.push(m);
+        return m;
+      },
+
+      scrollBottom() {
+        const self = this;
+        this.$nextTick(function () {
+          const el = self.$refs.msgBox;
+          if (el) el.scrollTop = el.scrollHeight;
+        });
+      },
+
+      autoGrow() {
+        const self = this;
+        this.$nextTick(function () {
+          const el = self.$refs.input;
+          if (!el) return;
+          el.style.height = 'auto';
+          el.style.height = Math.min(el.scrollHeight, 76) + 'px';
+        });
+      },
+
+      initChat() {
+        this.msgs = [];
+        const inWeek = this.courses.filter(function (c) {
+          return WEEK >= c.start_week && WEEK <= c.end_week;
+        });
+        const names = {};
+        inWeek.forEach(function (c) { names[c.name] = 1; });
+
+        const m = this.say('ai', {
+          paras: [
+            '你好，我是规划助手。下面这些是我排计划时会用到的依据：'
+          ],
+          facts: [
+            '第 12 周课表 ' + Object.keys(names).length + ' 门',
+            '未完成任务 ' + this.openTasks.length + ' 项',
+            '可用时间 工作日 19:00 后'
+          ],
+          opts: [
+            { key: 'ex1', label: '安排这周的学习', act: 'send', text: '帮我安排这周的学习计划，先排物理期中复习和数据库实验预习' },
+            { key: 'ex2', label: '安排即将截止的', act: 'send', text: '安排即将截止的任务' },
+            { key: 'ex3', label: '今晚学 2 小时', act: 'send', text: '今晚安排 2 小时学习' }
+          ]
+        });
+        return m;
+      },
+
+      sendText(t) {
+        this.draftText = t;
+        this.send();
+        this.autoGrow();
+      },
+
+      send() {
+        const text = (this.draftText || '').trim();
+        if (!text && !this.attach.length) return;
+
+        const self = this;
+        const attIds = this.attach.map(function (t) { return t.id; });
+
+        /* 第一条消息顺便给这条对话起个名字，历史列表里才认得出来 */
+        const cur = this.chats.find(function (x) { return x.id === self.curId; });
+        if (cur) {
+          cur.at = this.nowText();
+          if (cur.title === '新对话') cur.title = text.slice(0, 18) || '按所选任务安排';
+        }
+
+        this.say('me', { paras: [text || '（按已选任务安排）'] });
+
+        this.draftText = '';
+        this.attach = [];
+        this.autoGrow();
+
+        const p = this.parseIntent(text, attIds);
+        this.parsed = p;
+        this.push({ kind: 'parse', p: p });
+        this.reply(p, text);
+
+        this.saveChat();
+      },
+
+      /* 演示用的意图解析：关键词规则 + 缺省填充，不做模型。
+         真实实现换成后端返回的 intent / taskIds / cap 即可。 */
+      parseIntent(text, attIds) {
+        const t = text || '';
+
+        let range = 'week';
+        if (/下周/.test(t)) range = 'next';
+        else if (/今晚|今天/.test(t)) range = 'today';
+
+        let cap = 0;
+        const mh = t.match(/(\d+|一|两|二|三|四)\s*个?\s*小时/);
+        if (mh) {
+          const cn = { '一': 1, '两': 2, '二': 2, '三': 3, '四': 4 };
+          const n = cn[mh[1]] || Number(mh[1]);
+          if (n) cap = n * 60;
+        }
+
+        let ids = attIds.slice();
+        if (!ids.length) ids = this.matchTasks(t);
+
+        /* 「安排即将截止的」没点名，但意思清楚：按截止时间自己挑。
+           这类兜底规则是文本入口能用的关键，不能一遇到没点名就反问。 */
+        if (!ids.length && /即将截止|快到|最近|最急|临近/.test(t)) {
+          ids = this.urgentTasks(3);
+        }
+
+        return { range: range, taskIds: ids, cap: cap };
+      },
+
+      /* 截止最近、并且还没排满的任务 */
+      urgentTasks(n) {
+        const self = this;
+        return this.openTasks
+          .filter(function (t) {
+            if (!t.date) return false;
+            return self.bookedOf(t.id) < t.estimated_minutes;
+          })
+          .sort(function (a, b) {
+            const ka = a.date + (a.due || '23:59');
+            const kb = b.date + (b.due || '23:59');
+            return ka < kb ? -1 : ka > kb ? 1 : 0;
+          })
+          .slice(0, n)
+          .map(function (t) { return t.id; });
+      },
+
+      /* 从一句话里认出任务。长词优先，避免「高数」把「高数习题」也带进来 */
+      matchTasks(text) {
+        if (!text) return [];
+        const hits = [];
+        const self = this;
+        Object.keys(KW).forEach(function (id) {
+          const words = KW[id].slice().sort(function (a, b) { return b.length - a.length; });
+          for (let i = 0; i < words.length; i++) {
+            if (text.indexOf(words[i]) > -1) {
+              const task = self.tasks.find(function (x) { return x.id === Number(id); });
+              if (task && (task.status === 'pending' || task.status === 'in_progress')) {
+                hits.push({ id: Number(id), len: words[i].length, word: words[i] });
+              }
+              break;
+            }
+          }
+        });
+        /* 一个任务被更长的词命中过，就不再被短词重复计入 */
+        hits.sort(function (a, b) { return b.len - a.len; });
+        const taken = {};
+        const out = [];
+        hits.forEach(function (h) {
+          if (taken[h.id]) return;
+          taken[h.id] = 1;
+          out.push(h.id);
+        });
+        return out;
+      },
+
+      reply(p) {
+        const self = this;
+
+        /* ① 没说排哪些任务：先追问，不瞎猜 */
+        if (!p.taskIds.length) {
+          this.stage = 'needTask';
+          this.say('ai', {
+            paras: [
+              '范围按「' + this.rangeLabel(p.range) + '」来排没问题。不过还没定要排哪些任务：学习时段得挂在具体任务上，否则排出来只是空块。',
+              '点下面「选待办任务」，或者直接告诉我任务名。'
+            ],
+            opts: [{ key: 'pick', label: '选待办任务', act: 'pick' }]
+          });
+          return;
+        }
+
+        /* ② 有任务，看有没有更急的漏在外面 */
+        const missing = this.findUrgentMissing(p.taskIds);
+        if (!p.cap || missing) {
+          this.stage = 'needMore';
+          this.missing = missing;
+
+          const paras = ['好，这 ' + p.taskIds.length + ' 项我来排。'];
+          if (missing) {
+            paras.push('先说一件事：「' + missing.title + '」' + U.mmdd(missing.date) + ' ' + missing.due +
+              ' 就截止了，还剩 ' + U.durText(missing.estimated_minutes) + '没排进去，比其中一些任务还急。');
+          }
+          if (p.cap) {
+            if (missing) paras.push('上面这项要不要一起排？');
+          } else {
+            paras.push(missing ? '每天最多学多久？上面这项要不要一起排？' : '每天最多学多久？');
+          }
+
+          const opts = [
+            { key: 'c1', label: '每天 2 小时', act: 'cap', v: 120 },
+            { key: 'c2', label: '每天 3 小时', act: 'cap', v: 180 },
+            { key: 'c0', label: '不设上限', act: 'cap', v: 0 }
+          ];
+          if (missing) {
+            opts.push({ key: 'add', label: '把「' + missing.title + '」也加进来', act: 'add', v: missing.id });
+          }
+
+          this.say('ai', { paras: paras, opts: opts });
+          return;
+        }
+
+        this.generate();
+      },
+
+      /* 截止最近、又没被点名、而且确实还没排满的任务，拿出来问一句 */
+      findUrgentMissing(ids) {
+        const self = this;
+        let best = null;
+        this.openTasks.forEach(function (t) {
+          if (ids.indexOf(t.id) > -1) return;
+          if (!t.date) return;
+          if (t.date > WEEK_END) return;
+
+          if (self.bookedOf(t.id) >= t.estimated_minutes) return;
+
+          if (!best) { best = t; return; }
+          const a = t.date + ' ' + (t.due || '23:59');
+          const b = best.date + ' ' + (best.due || '23:59');
+          if (a < b) best = t;
+        });
+        return best;
+      },
+
+      pickOpt(m, o) {
+        if (o.act === 'pick') { this.openPick('task'); return; }
+
+        if (o.act === 'send') {
+          this.sendText(o.text);
+          return;
+        }
+
+        if (o.act === 'cap') {
+          this.parsed.cap = o.v;
+          m.opts.forEach(function (x) { if (x.act === 'cap') x.done = false; });
+          o.done = true;
+          /* 参数齐了就直接排，不用再说一句 */
+          this.generate();
+          return;
+        }
+
+        if (o.act === 'add') {
+          if (this.parsed.taskIds.indexOf(o.v) < 0) this.parsed.taskIds.push(o.v);
+          o.done = true;
+          o.label = '已加入';
+          if (this.parsed.cap || this.parsed.cap === 0) {
+            /* cap 已经选过（含"不设上限"=0），直接重排 */
+            if (this.hasPlan || this.stage === 'needMore') this.generate();
+          }
+          return;
+        }
+      },
+
+      /* ---------- 排程 ---------- */
+      windowsOf(date) {
+        const dow = U.dowOf(date);
+        if (dow === 0 || dow === 6) {
+          return [[9 * 60, 12 * 60], [14 * 60, 17 * 60], [19 * 60, 22 * 60 + 30]];
+        }
+        return [[19 * 60, 22 * 60 + 30]];
+      },
+
+      /* 已被占用的区间：课程 + 已有日程 + 本轮已排 */
+      busyOf(date, extra) {
+        const out = [];
+        const dow = U.dowOf(date);
+        const self = this;
+
+        this.courses.forEach(function (c) {
+          const wd = dow === 0 ? 7 : dow;
+          if (c.weekday !== wd) return;
+          if (WEEK < c.start_week || WEEK > c.end_week) return;
+          out.push({ s: U.hm(c.start_time), e: U.hm(c.end_time) });
+        });
+
+        this.events.forEach(function (ev) {
+          if (ev.date !== date) return;
+          out.push({ s: U.hm(ev.start), e: U.hm(ev.end) });
+        });
+
+        (extra || []).forEach(function (b) { out.push(b); });
+        return out.sort(function (a, b) { return a.s - b.s; });
+      },
+
+      /* 窗口减占用，得到当天还能用的空档 */
+      freeOf(date, extra) {
+        const busy = this.busyOf(date, extra);
+        const out = [];
+        this.windowsOf(date).forEach(function (w) {
+          let cur = w[0];
+          busy.forEach(function (b) {
+            if (b.e <= cur || b.s >= w[1]) return;
+            if (b.s > cur) out.push({ s: cur, e: Math.min(b.s, w[1]) });
+            cur = Math.max(cur, b.e);
+          });
+          if (cur < w[1]) out.push({ s: cur, e: w[1] });
+        });
+        return out.filter(function (x) { return x.e - x.s >= MIN_BLOCK; });
+      },
+
+      /*
+        演示用的贪心排程。真实实现由后端 plan 接口算，前端只负责画。
+        规则：按截止时间升序；尽量把一项任务整块放进一天，装不下才顺延；
+        单段不超过 3 小时；撞上课程或已有日程就跳过；截止前放不下就标「排不进」。
+      */
+      buildPlan(taskIds, cap) {
+        const self = this;
+        const capMin = cap || 9999;
+
+        const list = taskIds.map(function (id) {
+          return self.tasks.find(function (t) { return t.id === id; });
+        }).filter(Boolean);
+
+        list.sort(function (a, b) {
+          const ka = a.date ? a.date + ' ' + (a.due || '23:59') : '9999';
+          const kb = b.date ? b.date + ' ' + (b.due || '23:59') : '9999';
+          if (ka !== kb) return ka < kb ? -1 : 1;
+          return b.priority - a.priority;
+        });
+
+        const dates = [];
+        if (this.parsed.range === 'today') {
+          dates.push(TODAY);
+        } else {
+          const start = this.parsed.range === 'next' ? U.addDays(WEEK_START, 7) : WEEK_START;
+          for (let i = 0; i < 7; i++) dates.push(U.addDays(start, i));
+        }
+
+        const used = {};
+        dates.forEach(function (d) { used[d] = []; });
+
+        const items = [];
+        const unplanned = [];
+        const done = [];
+
+        function dayMinOf(date) {
+          return used[date].reduce(function (s, b) { return s + (b.e - b.s); }, 0);
+        }
+
+        function put(task, date, s, len) {
+          items.push({
+            date: date,
+            start: U.fmt(s),
+            end: U.fmt(s + len),
+            task_id: task.id,
+            title: task.title,
+            minutes: len,
+            s: s,
+            e: s + len
+          });
+          used[date].push({ s: s, e: s + len });
+        }
+
+        list.forEach(function (task) {
+          /* 已经排过时段的先扣掉，不然同一项会被排两遍 */
+          const booked = self.bookedOf(task.id);
+
+          let remain = Math.max(0, task.estimated_minutes - booked);
+          if (!remain) { done.push({ task: task, booked: booked }); return; }
+
+          const deadline = task.date;
+
+          for (let k = 0; k < dates.length && remain > 0; k++) {
+            const date = dates[k];
+
+            if (date < TODAY) continue;
+            if (deadline && date > deadline) break;
+
+            const budget = capMin - dayMinOf(date);
+            if (budget < MIN_BLOCK) continue;
+
+            /* 这一次想一口气放下的量：剩下的全部，但不超当天剩余额度 */
+            const want = Math.floor(Math.min(remain, budget) / STEP) * STEP;
+            if (want < MIN_BLOCK) continue;
+
+            const slots = self.freeOf(date, used[date]);
+            for (let i = 0; i < slots.length; i++) {
+              const sl = slots[i];
+              if (sl.e - sl.s < want) continue;
+              put(task, date, sl.s, want);
+              remain -= want;
+              break;
+            }
+          }
+
+          if (remain > 0) unplanned.push({ task: task, remain: remain });
+        });
+
+        items.sort(function (a, b) {
+          if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+          return a.s - b.s;
+        });
+
+        return { items: items, unplanned: unplanned, done: done };
+      },
+
+      generate() {
+        const p = this.parsed;
+        if (!p.taskIds.length) return;
+
+        const self = this;
+
+        /* 重排时把上一版的结果气泡撤掉，避免同一个结论说两遍 */
+        this.msgs = this.msgs.filter(function (m) { return m.tag !== 'res'; });
+
+        const r = this.buildPlan(p.taskIds, p.cap);
+        this.cand = r.items;
+        this.unplanned = r.unplanned;
+        this.hasPlan = r.items.length > 0;
+        this.confirmed = false;
+        if (this.hasPlan) this.version += 1;
+
+        if (!this.hasPlan) {
+          this.say('ai', {
+            tag: 'res',
+            paras: ['这个范围里排不出学习时段：课程和已有日程把可用空档占满了。换个范围，或者把每天的时长上限放宽一点。']
+          });
+          return;
+        }
+
+        const total = r.items.reduce(function (s, b) { return s + b.minutes; }, 0);
+        const last = r.items[r.items.length - 1];
+
+        this.say('ai', {
+          tag: 'res',
+          paras: ['排好了。截止最近的先占位置，剩下的顺着空档往后放；课程和已确认的时段都绕开了。'],
+          sum: {
+            count: r.items.length,
+            hours: U.durText(total),
+            last: U.mmdd(last.date)
+          }
+        });
+
+        if (r.done.length) {
+          const names = r.done.map(function (x) { return '「' + x.task.title + '」'; }).join('');
+          this.say('ai', {
+            tag: 'res',
+            paras: [names + '之前已经排过 ' + U.durText(r.done[0].booked) + '，和预估时长对得上，这次没再动它。']
+          });
+        }
+
+        if (r.unplanned.length) {
+          const u = r.unplanned[0];
+          this.say('ai', {
+            tag: 'res',
+            paras: ['「' + u.task.title + '」还差 ' + U.durText(u.remain) +
+              '没排下，' + (u.task.date ? U.mmdd(u.task.date) + ' 之前' : '这个范围里') +
+              '没有这么长的一段空档。可以放宽每天的上限，或者把截止时间往后调。']
+          });
+        }
+
+        if (this.conflicts.length) {
+          this.say('ai', {
+            tag: 'res',
+            paras: ['另外提醒一句：' + this.conflicts[0] + '。这处重叠之前就有，不是这次排的。AI 不会自己挪你已经确认过的时段，要改得去日程里单独处理。']
+          });
+        }
+
+        /* 新排的块可能落在列表下半截，直接滚到它 */
+        this.$nextTick(function () { self.scrollToCand(); });
+        this.saveChat();
+      },
+
+      scrollToCand() {
+        const box = this.$refs.planBox;
+        if (!box) return;
+        const first = box.querySelector('.pb.proposed');
+        if (!first) return;
+
+        /* 对齐到分组头，别把「这是哪天」滚出去 */
+        const head = first.parentElement.previousElementSibling || first;
+        const br = box.getBoundingClientRect();
+        const tr = head.getBoundingClientRect();
+        box.scrollTop += (tr.top - br.top) - 6;
+      },
+
+      isOpen(g) {
+        if (this.openMap[g.date] !== undefined) return this.openMap[g.date];
+        if (!this.hasPlan) return true;
+        return g.hasCand || g.isToday || g.hasConflict;
+      },
+
+      toggleDay(g) {
+        this.openMap[g.date] = !this.isOpen(g);
+      },
+
+      regenerate() {
+        this.generate();
+        TDesign.MessagePlugin.success('已按当前参数重新排了一版');
+      },
+
+      /* ---------- 结构化输入 ---------- */
+      openPick() {
+        this.pickRange = this.parsed.range;
+        this.pickCap = this.parsed.cap || 180;
+        this.pickSel = this.parsed.taskIds.slice();
+        this.pickVisible = true;
+      },
+
+      togglePick(id) {
+        const i = this.pickSel.indexOf(id);
+        if (i > -1) this.pickSel.splice(i, 1);
+        else this.pickSel.push(id);
+      },
+
+      /* 该任务已排进日程的分钟数，用来判断还差多少 */
+      bookedOf(id) {
+        return this.sessions.filter(function (s) {
+          return s.task_id === id && (s.status === 'confirmed' || s.status === 'completed');
+        }).reduce(function (a, s) {
+          return a + (U.hm(s.end) - U.hm(s.start));
+        }, 0);
+      },
+
+      applyPick() {
+        if (!this.pickSel.length) {
+          TDesign.MessagePlugin.warning('至少选一项任务');
+          return;
+        }
+
+        this.pickVisible = false;
+
+        const p = {
+          range: this.pickRange,
+          taskIds: this.pickSel.slice(),
+          cap: this.pickCap
+        };
+        this.parsed = p;
+
+        /* 把结构化选择翻译成一句人话，走同一条发送通道 */
+        const self = this;
+        const names = p.taskIds.map(function (id) {
+          const t = self.tasks.find(function (x) { return x.id === id; });
+          return t ? t.title : '';
+        }).filter(Boolean);
+        const capPart = p.cap ? '每天不超过 ' + this.capText(p.cap) : '每天不限时长';
+        const line = '按这几项排：' + names.join('、') +
+          '。范围 ' + this.rangeLabel(p.range) + '，' + capPart + '。';
+
+        this.say('me', { paras: [line] });
+        this.push({ kind: 'parse', p: p });
+        this.generate();
+      },
+
+      dropAttach(id) {
+        this.attach = this.attach.filter(function (t) { return t.id !== id; });
+      },
+
+      /* ---------- 文案 ---------- */
+      rangeLabel(r) {
+        if (r === 'next') return '下周 11/23 – 11/29';
+        if (r === 'today') return '仅今晚';
+        return '本周 11/16 – 11/22';
+      },
+
+      /* 解析条里空间紧，用短版本 */
+      rangeShortOf(r) {
+        if (r === 'next') return '下周 11/23–11/29';
+        if (r === 'today') return '仅今晚';
+        return '本周 11/16–11/22';
+      },
+
+      capText(min) {
+        if (!min) return '不限';
+        return (min / 60) + ' 小时';
+      },
+
+      /* ---------- 数字解释 ---------- */
+      explain(key) {
+        if (key === 'tasks') {
+          const self = this;
+          const list = this.parsed.taskIds.map(function (id) {
+            return self.tasks.find(function (x) { return x.id === id; });
+          }).filter(Boolean);
+
+          /* 和排程用同一个顺序：截止近的在前 */
+          list.sort(function (a, b) {
+            const ka = a.date ? a.date + ' ' + (a.due || '23:59') : '9999';
+            const kb = b.date ? b.date + ' ' + (b.due || '23:59') : '9999';
+            return ka < kb ? -1 : ka > kb ? 1 : 0;
+          });
+
+          const rows = list.map(function (t) {
+            const cut = self.cand.filter(function (b) { return b.task_id === t.id; })
+              .reduce(function (s, b) { return s + b.minutes; }, 0);
+            let text;
+            if (!cut) text = '没排进去';
+            else if (cut >= t.estimated_minutes) text = U.durText(cut) + ' 已排满';
+            else text = U.durText(cut) + ' / 共 ' + U.durText(t.estimated_minutes);
+            return [t.title, text];
+          });
+
+          this.explainData = {
+            title: '这 ' + rows.length + ' 项任务',
+            rows: rows,
+            note: '任务来自课程与任务页，预估耗时取自任务字段；AI 只负责把它切成能放进空档的段。'
+          };
+        } else if (key === 'hours') {
+          const self = this;
+          const rows = this.cand.map(function (b) {
+            return [U.mmdd(b.date) + ' ' + b.start, b.title + ' · ' + U.durText(b.minutes)];
+          });
+          this.explainData = {
+            title: '计划时长 ' + this.planHours,
+            rows: rows,
+            note: '时长是各段相加，不是按任务预估直接累加：放不下的部分不会计入。'
+          };
+        } else {
+          this.explainData = {
+            title: '最后排入 ' + this.planLast,
+            rows: [
+              ['已排时段', this.cand.length + ' 个'],
+              ['排不下的任务', this.unplanned.length + ' 项'],
+              ['范围内最晚截止', this.latestDue()]
+            ],
+            note: '「最后排入」是最后一个学习时段落在哪天，不等于任务的截止日。'
+          };
+        }
+        this.explainVisible = true;
+      },
+
+      latestDue() {
+        let best = '';
+        const self = this;
+        this.parsed.taskIds.forEach(function (id) {
+          const t = self.tasks.find(function (x) { return x.id === id; });
+          if (t && t.date && t.date > best) best = t.date;
+        });
+        return best ? U.mmdd(best) : '—';
+      },
+
+      conflictHint() {
+        this.explainData = {
+          title: '这处重叠怎么来的',
+          rows: [['冲突', this.conflicts[0]], ['谁造成的', '既有安排之间，不是本次规划']],
+          note: 'AI 只往空档里放，不会挪你已经确认的时段。要改的话去日程页点那块单独处理；重规划时也可以让它重排。'
+        };
+        this.explainVisible = true;
+      },
+
+      /* ---------- 落地 ---------- */
+      confirmPlan() {
+        if (!this.cand.length) return;
+
+        const sess = ES.sessions().filter(function (s) { return s.plan_id !== STALE_PLAN; });
+        const evs = ES.events();
+        const self = this;
+        const stamp = Date.now();
+
+        const newS = this.cand.map(function (b, i) {
+          return {
+            id: stamp + i,
+            plan_id: PLAN_ID_NEW,
+            task_id: b.task_id,
+            date: b.date,
+            start: b.start,
+            end: b.end,
+            status: 'confirmed',
+            created_by: 'ai',
+            locked: false
+          };
+        });
+
+        const newE = newS.map(function (s, i) {
+          return {
+            id: stamp + 100 + i,
+            event_type: 'study',
+            session_id: s.id,
+            task_id: s.task_id,
+            title: '',
+            date: s.date,
+            start: s.start,
+            end: s.end,
+            location: '',
+            is_fixed: true,
+            source: 'plan',
+            status: 'active'
+          };
+        });
+
+        ES.commit(evs.concat(newE), sess.concat(newS));
+
+        this.events = ES.events();
+        this.sessions = ES.sessions();
+        this.cand = [];
+        this.confirmed = true;
+        this.hasPlan = true;
+
+        this.say('ai', {
+          paras: ['已写进日程，' + newS.length + ' 个时段。日程页能看到它们，和课程排在一起；想挪时间直接在那里改。']
+        });
+
+        this.saveChat();
+        TDesign.MessagePlugin.success('已加入日程，共 ' + newS.length + ' 个学习时段');
+      },
+
+      saveDraft() {
+        TDesign.MessagePlugin.success('草稿已保存，下次进来可以接着改');
+      },
+
+      goSchedule() {
+        location.href = 'schedule.html';
+      }
+    },
+
+    mounted() {
+      const self = this;
+      document.title = 'AI 学习规划 · ' + C.brand.name;
+
+      this.bootChats();
+
+      window.addEventListener('keydown', function (ev) {
+        if ((ev.ctrlKey || ev.metaKey) && String(ev.key).toLowerCase() === 'k') {
+          ev.preventDefault();
+          const input = document.querySelector('.search input');
+          if (input) input.focus();
+        }
+      });
+
+      this.$nextTick(function () { self.autoGrow(); });
+    }
+  });
+})();
+</script>
+</body>
+</html>

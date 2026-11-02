@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>课程与任务</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<!-- 注意：in-DOM 模板里自定义标签必须显式闭合，不能写成 <app-icon /> -->
+<div id="app">
+  <app-shell active="tasks">
+
+    <!-- ================= 页头 ================= -->
+    <div class="page-head">
+      <div>
+        <h1>课程与任务</h1>
+        <p>{{ headLine }}</p>
+      </div>
+      <div class="ph-right">
+        <t-button variant="outline" @click="importTip">从文件导入</t-button>
+        <t-button theme="primary" @click="openNew">
+          <app-icon name="plus" :size="16" style="margin-right:4px"></app-icon>新建任务
+        </t-button>
+      </div>
+    </div>
+
+    <!-- ================= 统计 ================= -->
+    <div class="summary">
+      <div class="sum-cell">
+        <div class="sum-ico teal"><app-icon name="list" :size="18"></app-icon></div>
+        <div class="sum-body">
+          <div class="sum-label">全部任务</div>
+          <div class="sum-val">{{ stat.all }}<em>项</em></div>
+          <div class="sum-sub">来自 {{ stat.srcCount }} 个来源</div>
+        </div>
+      </div>
+      <div class="sum-cell">
+        <div class="sum-ico navy"><app-icon name="clock" :size="18"></app-icon></div>
+        <div class="sum-body">
+          <div class="sum-label">待完成</div>
+          <div class="sum-val">{{ stat.todo }}<em>项</em></div>
+          <div class="sum-sub">{{ stat.todo ? stat.inProgress + ' 项进行中 · 预估共 ' + stat.workText : '暂无待办' }}</div>
+        </div>
+      </div>
+      <div class="sum-cell">
+        <div class="sum-ico orange"><app-icon name="warning" :size="18"></app-icon></div>
+        <div class="sum-body">
+          <div class="sum-label">3 天内到期</div>
+          <div class="sum-val">{{ stat.soon }}<em>项</em></div>
+          <div class="sum-sub">{{ stat.overdue }} 项已逾期</div>
+        </div>
+      </div>
+      <div class="sum-cell">
+        <div class="sum-ico gold"><app-icon name="check" :size="18"></app-icon></div>
+        <div class="sum-body">
+          <div class="sum-label">已完成</div>
+          <div class="sum-val">{{ stat.done }}<em>项</em></div>
+          <div class="sum-sub">另有 {{ stat.cancelled }} 项已取消</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 筛选 ================= -->
+    <div class="toolbar">
+      <div class="tb-line">
+        <t-input v-model="q" placeholder="搜索任务或课程" clearable style="width:230px">
+          <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
+        </t-input>
+        <t-radio-group v-model="fSource" variant="default-filled">
+          <t-radio-button value="all">全部来源</t-radio-button>
+          <t-radio-button value="platform">平台同步</t-radio-button>
+          <t-radio-button value="manual">手动创建</t-radio-button>
+          <t-radio-button value="import">文件导入</t-radio-button>
+        </t-radio-group>
+        <span class="sp"></span>
+        <t-select v-model="sortBy" :options="sortOptions" style="width:140px"></t-select>
+        <t-button variant="text" @click="resetFilter">重置筛选</t-button>
+      </div>
+      <div class="tb-line">
+        <t-select v-model="fStatus" :options="statusOptions" style="width:118px"></t-select>
+        <t-select v-model="fCourse" :options="courseOptions" style="width:140px"></t-select>
+        <t-select v-model="fType" :options="typeOptions" style="width:112px"></t-select>
+        <t-select v-model="fDue" :options="dueOptions" style="width:124px"></t-select>
+        <span class="sp"></span>
+        <span class="tb-count">
+          共 {{ tasks.length }} 项，筛出 <b>{{ filtered.length }}</b> 项
+        </span>
+      </div>
+    </div>
+
+    <!-- ================= 批量操作 ================= -->
+    <div class="bulk" v-if="selected.length">
+      <span class="bk-l">已选 <b>{{ selected.length }}</b> 项</span>
+      <t-button size="small" theme="primary" variant="outline" @click="bulkDone">标记为已完成</t-button>
+      <t-button size="small" variant="text" @click="selected = []">取消选择</t-button>
+    </div>
+
+    <!-- ================= 任务表 ================= -->
+    <div class="tbl-card">
+      <div class="tbl-scroll">
+        <table class="tasks">
+          <colgroup>
+            <col style="width:40px" />
+            <col />
+            <col class="col-course" style="width:122px" />
+            <col class="col-type" style="width:78px" />
+            <col style="width:130px" />
+            <col class="col-est" style="width:90px" />
+            <col style="width:68px" />
+            <col style="width:86px" />
+            <col style="width:44px" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>
+                <t-checkbox :checked="allSelected" @change="toggleAll"></t-checkbox>
+              </th>
+              <th>任务</th>
+              <th class="col-course">课程</th>
+              <th class="col-type">类型</th>
+              <th>截止</th>
+              <th class="col-est">预估</th>
+              <th>优先级</th>
+              <th>状态</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="t in filtered" :key="t.id"
+                :class="{ sel: selected.indexOf(t.id) >= 0, 'row-done': isClosed(t) }"
+                @click="openDetail(t)">
+              <td @click.stop>
+                <t-checkbox :checked="selected.indexOf(t.id) >= 0" @change="toggleSel(t.id)"></t-checkbox>
+              </td>
+
+              <td>
+                <div class="t-cell">
+                  <span class="prio" :class="prioCls(t.priority)"><i></i></span>
+                  <div style="min-width:0">
+                    <div class="t-title">{{ t.title }}</div>
+                    <div class="t-sub">
+                      <span class="tag src">{{ srcText(t.source) }}</span>
+                      <span class="tag none" v-if="!t.date">无截止时间</span>
+                      <span class="tag risk" v-if="t.status === 'pending' && isOverdue(t)">已逾期</span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+
+              <td class="col-course">{{ t.course_name || '—' }}</td>
+              <td class="col-type">{{ typeText(t.source_type) }}</td>
+
+              <td>
+                <div class="due" :class="{ soon: isSoon(t) }">
+                  {{ dueMain(t) }}
+                  <em>{{ dueSub(t) }}</em>
+                </div>
+              </td>
+
+              <td class="col-est">
+                <span class="est">{{ estMain(t) }}<i v-if="estAi(t)">AI</i></span>
+              </td>
+
+              <td>
+                <span class="prio" :class="prioCls(t.priority)"><i></i>{{ prioText(t.priority) }}</span>
+              </td>
+
+              <td>
+                <span class="tag" :class="statusCls(t.status)">{{ statusText(t.status) }}</span>
+              </td>
+
+              <td @click.stop>
+                <button class="more-btn" title="打开详情" @click="openDetail(t)">···</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="empty" v-if="!filtered.length">
+          <div class="em-ico"><app-icon name="search" :size="24"></app-icon></div>
+          <p>{{ tasks.length ? '没有符合当前筛选条件的任务，换个条件试试。' : '还没有任何任务，先加一个试试。' }}</p>
+          <div class="em-act">
+            <t-button v-if="hasFilter" variant="outline" size="small" @click="resetFilter">清空筛选</t-button>
+            <t-button v-else theme="primary" size="small" @click="openNew">新建任务</t-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 任务详情抽屉（只读浏览） ================= -->
+    <t-drawer v-model:visible="drawerVisible" size="460px" :footer="false" header="任务详情">
+
+      <template v-if="current">
+        <h3 class="dw-title">{{ current.title }}</h3>
+        <div class="dw-sub">
+          <span class="tag src">{{ srcText(current.source) }}</span>
+          <span class="tag" :class="statusCls(current.status)">{{ statusText(current.status) }}</span>
+          <span class="prio" :class="prioCls(current.priority)"><i></i>{{ prioText(current.priority) }}优先级</span>
+        </div>
+
+        <div class="dw-desc" v-if="current.description">{{ current.description }}</div>
+
+        <dl class="dlg-meta">
+          <dt>课程</dt>
+          <dd>{{ current.course_name || '未关联课程' }}</dd>
+          <dt>类型</dt>
+          <dd>{{ typeText(current.source_type) }}</dd>
+          <dt>截止</dt>
+          <dd>{{ current.date ? current.date + ' ' + current.due : '未设置（排期优先级最低）' }}</dd>
+          <dt>预估耗时</dt>
+          <dd class="dd-est">
+            <span>{{ estText(current) }}</span>
+            <t-button v-if="!current.estimated_minutes" size="small" variant="outline"
+                      :loading="estimating" @click="aiEstimateDetail">让 AI 估</t-button>
+          </dd>
+          <dt>已排时段</dt>
+          <dd>{{ bookedText(current.id) }}</dd>
+          <dt>创建时间</dt>
+          <dd>{{ current.created_at }}</dd>
+          <dt>手动改过</dt>
+          <dd>{{ current.user_modified ? '是，同步不会覆盖' : '否' }}</dd>
+        </dl>
+
+        <template v-if="slotsOf(current.id).length">
+          <div class="dw-sec-t">已排的学习时段</div>
+          <div class="slot-row" v-for="s in slotsOf(current.id)" :key="s.id">
+            <span class="sr-t">{{ s.date }} {{ s.start }} – {{ s.end }}</span>
+            <span class="tag" :class="s.status === 'completed' ? 'done' : (s.status === 'proposed' ? 'pending' : 'doing')">
+              {{ s.status === 'completed' ? '已完成' : (s.status === 'proposed' ? '待确认' : '已确认') }}
+            </span>
+          </div>
+        </template>
+
+        <div class="dw-acts">
+          <t-button theme="primary" @click="markDone(current)" v-if="!isClosed(current)">标记完成</t-button>
+          <t-button theme="primary" variant="outline" @click="startEdit(current)" v-if="!isClosed(current)">编辑</t-button>
+          <t-button theme="default" variant="outline" @click="startEdit(current)" v-if="isClosed(current)">编辑</t-button>
+          <span class="grow"></span>
+          <t-button theme="danger" variant="text" @click="confirmDelete">
+            {{ deleting ? '再点一次确认删除' : '删除' }}
+          </t-button>
+        </div>
+      </template>
+
+    </t-drawer>
+
+    <!-- ================= 新建 / 编辑任务（居中悬浮窗） ================= -->
+    <t-dialog v-model:visible="formVisible" width="560px" :footer="false"
+              :header="formMode === 'new' ? '新建任务' : '编辑任务'">
+
+      <div class="dlg-form">
+        <div class="fg full">
+          <label>标题</label>
+          <t-input v-model="draft.title" placeholder="例如：数据结构实验报告"></t-input>
+        </div>
+
+        <div class="fg">
+          <label>课程</label>
+          <t-select v-model="draft.course_name" :options="coursePickOptions" placeholder="不关联课程"></t-select>
+        </div>
+        <div class="fg">
+          <label>类型</label>
+          <t-select v-model="draft.source_type" :options="typePickOptions"></t-select>
+        </div>
+
+        <div class="fg">
+          <label>截止日期</label>
+          <t-date-picker v-model="draft.date" format="YYYY-MM-DD" value-type="YYYY-MM-DD"
+                         placeholder="留空表示没有截止" style="width:100%" clearable></t-date-picker>
+        </div>
+        <div class="fg">
+          <label>截止时间</label>
+          <t-time-picker v-model="draft.due" format="HH:mm" value-type="HH:mm"
+                         placeholder="先选日期" style="width:100%" :disabled="!draft.date"></t-time-picker>
+        </div>
+
+        <div class="fg">
+          <label>预估耗时</label>
+          <div class="est-row">
+            <t-input-number v-model="draft.estimated_minutes" :min="0" :max="1200" :step="15"
+                            theme="normal" placeholder="可不填" @change="onEstChange"></t-input-number>
+            <t-button variant="outline" :loading="estimating" @click="aiEstimate">
+              <app-icon name="sparkle" :size="15" style="margin-right:4px"></app-icon>AI 估
+            </t-button>
+          </div>
+          <span class="hint">{{ estHint }}</span>
+        </div>
+        <div class="fg">
+          <label>优先级</label>
+          <t-radio-group v-model="draft.priority" variant="default-filled" style="width:100%">
+            <t-radio-button :value="2">低</t-radio-button>
+            <t-radio-button :value="3">中</t-radio-button>
+            <t-radio-button :value="5">高</t-radio-button>
+          </t-radio-group>
+        </div>
+
+        <div class="fg full">
+          <label>备注</label>
+          <t-textarea v-model="draft.description" placeholder="写点要求、交到哪里，方便以后回看"
+                      :autosize="{ minRows: 2, maxRows: 4 }"></t-textarea>
+        </div>
+
+        <div class="form-tip full" v-if="fromMsg"
+             style="background:var(--brand-1);border:1px solid var(--brand-3);color:var(--brand-9);border-radius:var(--r-sm);padding:8px 11px;line-height:1.6">
+          这条任务从消息 #{{ fromMsg.id }}「{{ fromMsg.title }}」提取，字段是按通知内容预填的，确认无误再保存。
+        </div>
+
+        <div class="form-tip full">
+          没有截止时间的任务也能进计划，但 AI 排期时会放在最后。平台同步来的任务，你手动改过的字段不会被下次同步覆盖。
+        </div>
+
+        <div class="dlg-acts full">
+          <t-button variant="outline" @click="cancelForm">取消</t-button>
+          <t-button theme="primary" @click="saveDraft">保存</t-button>
+        </div>
+      </div>
+
+    </t-dialog>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>
+(function () {
+  const C = window.APP_CONFIG;
+  const M = window.MOCK;
+  const U = window.AppUtil;
+
+  /* 关键词匹配统一走全局搜索的口径：连续命中 + 简称（搜「高数」也能出
+     「高等数学」）。不这么干，面板说「资料 5 条」、点进资料页却是 0 条。 */
+  function kwHit(text, kw) {
+    const S = window.AppSearch;
+    if (S && S.hit) return S.hit(text, kw);
+    return String(text == null ? '' : text).toLowerCase().indexOf(kw) >= 0;
+  }
+
+  const SRC_TEXT = { platform: '平台同步', manual: '手动创建', import: '文件导入' };
+  const TYPE_TEXT = {
+    assignment: '作业', todo: '待办', exam: '考试',
+    reading: '阅读', review: '复习', project: '项目'
+  };
+  const STATUS_TEXT = {
+    pending: '待开始', in_progress: '进行中', completed: '已完成', cancelled: '已取消'
+  };
+
+  // ---------- 估时兜底规则 ----------
+  // 这一层是给开发的接口占位：真接口上线后把 mockEstimate 整个换成
+  //   POST /api/tasks/estimate  { title, source_type, course_name, description }
+  //   → { estimated_minutes, reason }
+  // 其余调用方（弹窗里的「AI 估」、详情里的「让 AI 估」）不用改。
+  const EST_BASE = { assignment: 60, reading: 30, review: 45, project: 120, exam: 90, todo: 30 };
+
+  function mockEstimate(t) {
+    let m = EST_BASE[t.source_type] || 60;
+    const text = ((t.title || '') + ' ' + (t.description || ''));
+    if (/报告|论文|大作业|课程设计/.test(text)) m += 60;
+    if (/习题|练习|第[一二三四五六七八九十\d]+章/.test(text)) m = Math.round(m * 0.75);
+    if (/预习|背诵|单词/.test(text)) m = Math.round(m * 0.7);
+    return Math.max(15, Math.round(m / 15) * 15);
+  }
+
+  function todayMin() { return U.NOW; }
+
+  mountApp({
+    data() {
+      return {
+        todayIso: M.today,
+        week: 12,
+        courses: M.courses,
+        sessions: M.sessions,
+        tasks: window.Store.tasks(),
+
+        q: '',
+        fSource: 'all',
+        fStatus: 'all',
+        fCourse: 'all',
+        fType: 'all',
+        fDue: 'all',
+        sortBy: 'due_asc',
+
+        selected: [],
+
+        drawerVisible: false,
+        formVisible: false,
+        formMode: 'new',
+        current: null,
+        deleting: false,
+        estimating: false,
+        /* 从消息页「提取为任务」跳过来时，带着来源消息，抽屉里要说明一句 */
+        fromMsg: null,
+        draft: this.blankDraft()
+      };
+    },
+
+    computed: {
+      headLine() {
+        if (!this.tasks.length) return '还没有任务。新建一个，或者等平台同步下来';
+        const srcs = {};
+        this.tasks.forEach(function (t) { srcs[t.source] = 1; });
+        const n = Object.keys(srcs).length;
+        return this.tasks.length + ' 项任务 · 来自 ' + n + ' 个来源 · 平台作业和手动事项放在同一个列表里';
+      },
+
+      stat() {
+        const self = this;
+        const todo = this.tasks.filter(function (t) {
+          return t.status === 'pending' || t.status === 'in_progress';
+        });
+        const srcs = {};
+        this.tasks.forEach(function (t) { srcs[t.source] = 1; });
+        return {
+          all: this.tasks.length,
+          srcCount: Object.keys(srcs).length,
+          todo: todo.length,
+          inProgress: this.tasks.filter(function (t) { return t.status === 'in_progress'; }).length,
+          done: this.tasks.filter(function (t) { return t.status === 'completed'; }).length,
+          cancelled: this.tasks.filter(function (t) { return t.status === 'cancelled'; }).length,
+          soon: todo.filter(function (t) {
+            const d = U.dayDiff(self.todayIso, t.date);
+            return d !== null && d >= 0 && d <= 3;
+          }).length,
+          overdue: todo.filter(function (t) { return self.isOverdue(t); }).length,
+          workText: U.durText(todo.reduce(function (n, t) { return n + (t.estimated_minutes || 0); }, 0))
+        };
+      },
+
+      hasFilter() {
+        return !!(this.q.trim() || this.fSource !== 'all' || this.fStatus !== 'all' ||
+          this.fCourse !== 'all' || this.fType !== 'all' || this.fDue !== 'all');
+      },
+
+      // 预估耗时下面那行小字，随估算状态变
+      estHint() {
+        if (this.estimating) return '正在估算…';
+        const d = this.draft;
+        const v = Number(d.estimated_minutes);
+        if (!v) return '不填也能存，排期时按任务类型给个默认值';
+        if (d.aiFilled) return 'AI 估的值，不对直接改';
+        return '分钟，自己估的';
+      },
+
+      filtered() {
+        const self = this;
+        let list = this.tasks.slice();
+
+        if (this.fSource !== 'all') list = list.filter(function (t) { return t.source === self.fSource; });
+        if (this.fStatus !== 'all') list = list.filter(function (t) { return t.status === self.fStatus; });
+        if (this.fCourse !== 'all') {
+          list = list.filter(function (t) {
+            return self.fCourse === '__none__' ? !t.course_name : t.course_name === self.fCourse;
+          });
+        }
+        if (this.fType !== 'all') list = list.filter(function (t) { return t.source_type === self.fType; });
+
+        if (this.fDue !== 'all') {
+          list = list.filter(function (t) {
+            const d = U.dayDiff(self.todayIso, t.date);
+            if (self.fDue === 'none') return d === null;
+            if (d === null) return false;
+            if (self.fDue === 'overdue') return d < 0 && self.openOnly(t);
+            if (self.fDue === '3d') return d >= 0 && d <= 3;
+            if (self.fDue === 'week') return d >= 0 && d <= 6;
+            return true;
+          });
+        }
+
+        const kw = this.q.trim().toLowerCase();
+        if (kw) {
+          list = list.filter(function (t) {
+            return kwHit(t.title, kw) || kwHit(t.course_name, kw) || kwHit(t.description, kw);
+          });
+        }
+
+        const sort = this.sortBy;
+        list.sort(function (a, b) {
+          /* 已完成 / 已取消一律沉底，不管按什么排 */
+          const ca = self.isClosed(a) ? 1 : 0;
+          const cb = self.isClosed(b) ? 1 : 0;
+          if (ca !== cb) return ca - cb;
+
+          if (sort === 'prio') {
+            if (b.priority !== a.priority) return b.priority - a.priority;
+          } else if (sort === 'created') {
+            return String(b.created_at || '') < String(a.created_at || '') ? -1 : 1;
+          } else if (sort === 'status') {
+            const order = { in_progress: 0, pending: 1, completed: 2, cancelled: 3 };
+            if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
+          }
+          const da = a.date || '9999-99-99';
+          const db = b.date || '9999-99-99';
+          if (da !== db) return da < db ? -1 : 1;
+          return String(a.due || '99:99') < String(b.due || '99:99') ? -1 : 1;
+        });
+
+        return list;
+      },
+
+      allSelected() {
+        return this.filtered.length > 0 && this.selected.length === this.filtered.length;
+      },
+
+      statusOptions() {
+        return [
+          { label: '全部状态', value: 'all' },
+          { label: '待开始', value: 'pending' },
+          { label: '进行中', value: 'in_progress' },
+          { label: '已完成', value: 'completed' },
+          { label: '已取消', value: 'cancelled' }
+        ];
+      },
+
+      courseOptions() {
+        const seen = {};
+        const out = [{ label: '全部课程', value: 'all' }];
+        this.courses.forEach(function (c) {
+          if (seen[c.name]) return;
+          seen[c.name] = 1;
+          out.push({ label: c.name, value: c.name });
+        });
+        out.push({ label: '未关联课程', value: '__none__' });
+        return out;
+      },
+
+      coursePickOptions() {
+        const seen = {};
+        const out = [{ label: '不关联课程', value: '' }];
+        this.courses.forEach(function (c) {
+          if (seen[c.name]) return;
+          seen[c.name] = 1;
+          out.push({ label: c.name, value: c.name });
+        });
+        return out;
+      },
+
+      typeOptions() {
+        const out = [{ label: '全部类型', value: 'all' }];
+        Object.keys(TYPE_TEXT).forEach(function (k) {
+          out.push({ label: TYPE_TEXT[k], value: k });
+        });
+        return out;
+      },
+
+      typePickOptions() {
+        const out = [];
+        Object.keys(TYPE_TEXT).forEach(function (k) {
+          out.push({ label: TYPE_TEXT[k], value: k });
+        });
+        return out;
+      },
+
+      dueOptions() {
+        return [
+          { label: '全部时间', value: 'all' },
+          { label: '已逾期', value: 'overdue' },
+          { label: '3 天内', value: '3d' },
+          { label: '7 天内', value: 'week' },
+          { label: '无截止时间', value: 'none' }
+        ];
+      },
+
+      sortOptions() {
+        return [
+          { label: '按截止时间', value: 'due_asc' },
+          { label: '按优先级', value: 'prio' },
+          { label: '按状态', value: 'status' },
+          { label: '按创建时间', value: 'created' }
+        ];
+      }
+    },
+
+    methods: {
+      blankDraft() {
+        // 预估耗时不再预填 60：那个 60 没人填过，却会被当成"手动填写"存下去
+        return {
+          id: null, title: '', course_name: '', source_type: 'assignment',
+          date: '', due: '23:59', estimated_minutes: null, aiFilled: false,
+          priority: 3, description: ''
+        };
+      },
+
+      srcText(s) { return SRC_TEXT[s] || s; },
+      typeText(t) { return TYPE_TEXT[t] || t; },
+      statusText(s) { return STATUS_TEXT[s] || s; },
+
+      statusCls(s) {
+        if (s === 'completed') return 'done';
+        if (s === 'cancelled') return 'cancel';
+        if (s === 'in_progress') return 'doing';
+        return 'pending';
+      },
+
+      prioText(p) { return p >= 4 ? '高' : (p === 3 ? '中' : '低'); },
+      prioCls(p) { return p >= 4 ? 'p-high' : (p === 3 ? 'p-mid' : 'p-low'); },
+
+      isClosed(t) { return t.status === 'completed' || t.status === 'cancelled'; },
+      openOnly(t) { return t.status === 'pending' || t.status === 'in_progress'; },
+
+      isOverdue(t) {
+        const d = U.dayDiff(this.todayIso, t.date);
+        return d !== null && d < 0 && t.status !== 'completed' && t.status !== 'cancelled';
+      },
+
+      isSoon(t) {
+        if (this.isClosed(t)) return false;
+        const d = U.dayDiff(this.todayIso, t.date);
+        return d !== null && d >= 0 && d <= 1;
+      },
+
+      dueMain(t) {
+        if (!t.date) return '未设置';
+        const d = U.dayDiff(this.todayIso, t.date);
+        if (d === 0) return '今天';
+        if (d === 1) return '明天';
+        if (d === -1) return '昨天';
+        return U.mmdd(t.date);
+      },
+
+      dueSub(t) {
+        if (!t.date) return '可以进计划，排在最后';
+        const d = U.dayDiff(this.todayIso, t.date);
+        if (this.isClosed(t)) return t.due || '';
+        if (d < 0) return '已逾期 ' + Math.abs(d) + ' 天';
+        return (t.due || '') + (d > 1 ? ' · ' + d + ' 天后' : '');
+      },
+
+      estMain(t) {
+        if (!t.estimated_minutes) return '—';
+        return U.durText(t.estimated_minutes);
+      },
+
+      estAi(t) {
+        return t.estimate_source === 'ai';
+      },
+
+      bookedText(taskId) {
+        const list = this.slotsOf(taskId).filter(function (s) { return s.status !== 'proposed'; });
+        if (!list.length) return '还没排';
+        const mins = list.reduce(function (n, s) { return n + (U.hm(s.end) - U.hm(s.start)); }, 0);
+        return list.length + ' 段 · 共 ' + U.durText(mins);
+      },
+
+      slotsOf(taskId) {
+        let list = this.sessions.filter(function (s) { return s.task_id === taskId; });
+        if (this.current && this.current.id === taskId) {
+          /* 正在编辑草稿时不计算 */
+        }
+        return list.sort(function (a, b) {
+          return String(a.date + a.start) < String(b.date + b.start) ? -1 : 1;
+        });
+      },
+
+      toggleSel(id) {
+        const i = this.selected.indexOf(id);
+        if (i >= 0) this.selected.splice(i, 1);
+        else this.selected.push(id);
+      },
+
+      toggleAll() {
+        const self = this;
+        if (this.allSelected) {
+          this.selected = [];
+        } else {
+          this.selected = this.filtered.map(function (t) { return t.id; });
+        }
+      },
+
+      bulkDone() {
+        const ids = this.selected.slice();
+        ids.forEach(function (id) { window.Store.patch(id, { status: 'completed' }); });
+        this.selected = [];
+        this.tasks = window.Store.tasks();
+        TDesign.MessagePlugin.success('已把 ' + ids.length + ' 项标记为完成');
+      },
+
+      resetFilter() {
+        this.q = '';
+        this.fSource = 'all';
+        this.fStatus = 'all';
+        this.fCourse = 'all';
+        this.fType = 'all';
+        this.fDue = 'all';
+        this.sortBy = 'due_asc';
+        this.selected = [];
+      },
+
+      openDetail(t) {
+        this.current = t;
+        this.deleting = false;
+        this.formVisible = false;
+        this.drawerVisible = true;
+      },
+
+      openNew() {
+        this.draft = this.blankDraft();
+        this.current = null;
+        this.formMode = 'new';
+        this.formVisible = true;
+      },
+
+      startEdit(t) {
+        this.draft = {
+          id: t.id,
+          title: t.title,
+          course_name: t.course_name || '',
+          source_type: t.source_type,
+          date: t.date || '',
+          due: t.due || '23:59',
+          estimated_minutes: t.estimated_minutes || null,
+          aiFilled: t.estimate_source === 'ai',
+          priority: t.priority || 3,
+          description: t.description || ''
+        };
+        this.formMode = 'edit';
+        this.current = t;
+        this.drawerVisible = false;
+        this.formVisible = true;
+      },
+
+      cancelForm() {
+        const backToDetail = this.formMode === 'edit' && this.current;
+        this.formVisible = false;
+        if (backToDetail) this.reopenDetail();
+      },
+
+      // 编辑是从详情里点进来的，弹窗关掉后回到详情，别把人扔回列表
+      reopenDetail() {
+        const self = this;
+        setTimeout(function () {
+          if (self.current && !self.formVisible) {
+            self.current = window.Store.get(self.current.id) || self.current;
+            self.drawerVisible = true;
+          }
+        }, 180);
+      },
+
+      saveDraft() {
+        const d = this.draft;
+        if (!d.title || !d.title.trim()) {
+          TDesign.MessagePlugin.warning('先给任务起个名字');
+          return;
+        }
+
+        // 预估耗时可以不填。填了才记来源：AI 估的别标成手动，手填的别标成 AI。
+        const est = Number(d.estimated_minutes) || 0;
+        const payload = {
+          title: d.title.trim(),
+          course_name: d.course_name || '',
+          source_type: d.source_type,
+          date: d.date || null,
+          due: d.date ? (d.due || '23:59') : null,
+          estimated_minutes: est > 0 ? est : null,
+          estimate_source: est > 0 ? (d.aiFilled ? 'ai' : 'user') : null,
+          priority: Number(d.priority),
+          description: (d.description || '').trim()
+        };
+
+        if (this.formMode === 'new') {
+          payload.status = 'pending';
+          payload.source = 'manual';
+          const t = window.Store.add(payload);
+          this.tasks = window.Store.tasks();
+          this.formVisible = false;
+          TDesign.MessagePlugin.success('已添加：' + t.title);
+        } else {
+          window.Store.patch(d.id, payload);
+          this.tasks = window.Store.tasks();
+          this.current = window.Store.get(d.id);
+          this.formVisible = false;
+          this.reopenDetail();
+          TDesign.MessagePlugin.success('已保存修改');
+        }
+      },
+
+      // 手改了数字，这一版就不算 AI 估的了
+      onEstChange() {
+        this.draft.aiFilled = false;
+      },
+
+      aiEstimate() {
+        const self = this;
+        const d = this.draft;
+        if (!d.title || !d.title.trim()) {
+          TDesign.MessagePlugin.warning('先写个标题，AI 才有依据');
+          return;
+        }
+        this.estimating = true;
+        // 接口位：这里换成 POST /api/tasks/estimate，返回 estimated_minutes 即可
+        setTimeout(function () {
+          d.estimated_minutes = mockEstimate(d);
+          d.aiFilled = true;
+          self.estimating = false;
+        }, 650);
+      },
+
+      // 详情页里给没估过的任务补一次
+      aiEstimateDetail() {
+        const self = this;
+        const t = this.current;
+        if (!t) return;
+        this.estimating = true;
+        setTimeout(function () {
+          const m = mockEstimate(t);
+          window.Store.patch(t.id, { estimated_minutes: m, estimate_source: 'ai' });
+          self.tasks = window.Store.tasks();
+          self.current = window.Store.get(t.id);
+          self.estimating = false;
+          TDesign.MessagePlugin.success('AI 估了 ' + U.durText(m) + '，不对可以直接改');
+        }, 650);
+      },
+
+      estText(t) {
+        if (!t || !t.estimated_minutes) return '未估算';
+        return t.estimated_minutes + ' 分钟' + (t.estimate_source === 'ai' ? ' · AI 估算' : ' · 手动填写');
+      },
+
+      markDone(t) {
+        window.Store.patch(t.id, { status: 'completed' });
+        this.tasks = window.Store.tasks();
+        this.current = window.Store.get(t.id);
+        this.deleting = false;
+        TDesign.MessagePlugin.success('已完成：' + t.title);
+      },
+
+      confirmDelete() {
+        if (!this.deleting) {
+          this.deleting = true;
+          TDesign.MessagePlugin.warning('再点一次就删除，删掉不能恢复');
+          return;
+        }
+        const name = this.current.title;
+        window.Store.remove(this.current.id);
+        this.tasks = window.Store.tasks();
+        this.drawerVisible = false;
+        this.deleting = false;
+        TDesign.MessagePlugin.success('已删除：' + name);
+      },
+
+      importTip() {
+        TDesign.MessagePlugin.info('文件导入在第三批交付，先支持手动新建');
+      }
+    },
+
+    mounted() {
+      document.title = '课程与任务 · ' + C.brand.name;
+
+      const qs = new URLSearchParams(location.search);
+      if (qs.get('new') === '1') {
+        this.openNew();
+
+        /* 从消息页「提取为任务」跳过来：字段是那边预填好、并且给人看过一眼的。
+           真实实现里这些值由后端 POST /api/tasks/from-notification 生成，
+           前端只负责把预览过的内容带过来，不在这一侧做任何识别。 */
+        const fromId = Number(qs.get('from'));
+        if (fromId && window.NotifyStore) {
+          const msg = window.NotifyStore.get(fromId);
+          if (msg) this.fromMsg = { id: msg.id, title: msg.title };
+        }
+        if (qs.get('title'))  this.draft.title = qs.get('title');
+        if (qs.get('course')) this.draft.course_name = qs.get('course');
+        if (qs.get('date'))   this.draft.date = qs.get('date');
+        if (qs.get('due'))    this.draft.due = qs.get('due');
+        if (qs.get('desc'))   this.draft.description = qs.get('desc');
+      } else if (qs.get('id')) {
+        const t = window.Store.get(Number(qs.get('id')));
+        if (t) this.openDetail(t);
+      }
+      /* 从顶栏搜索「查看全部」过来：把关键词灌进筛选框 */
+      if (qs.get('q') && !qs.get('new')) this.q = qs.get('q');
+      if (location.search) history.replaceState(null, '', location.pathname);
+    }
+  });
+})();
+</script>
+</body>
+</html>

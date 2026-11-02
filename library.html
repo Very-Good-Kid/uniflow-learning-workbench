@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>学习资料库</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+</head>
+<body>
+
+<!-- 注意：in-DOM 模板里自定义标签必须显式闭合，不能写成 <app-icon /> -->
+<div id="app">
+  <app-shell active="library">
+
+    <!-- ================= 页头 ================= -->
+    <div class="page-head">
+      <div>
+        <h1>学习资料库</h1>
+        <p>{{ headLine }}</p>
+      </div>
+      <div class="ph-right">
+        <t-button variant="outline" :disabled="!favCount" @click="toggleFavOnly">
+          <lib-icon name="star" :filled="favOnly" :size="15" style="margin-right:5px"></lib-icon>
+          {{ favOnly ? '看全部资料' : '只看收藏 ' + favCount }}
+        </t-button>
+      </div>
+    </div>
+
+    <!-- ================= 课程卡带 =================
+         这一条既是筛选器，也是将来推荐流的容器：
+         换成运营位 / 推荐流只需替换数据源，页面骨架不动。
+
+         ⚠️ 待议：现在的数据源是「MOCK.courses 去重、只保留有资料的课」。
+         真实场景下每个学生看到的课程不一样（本人本学期选课，来自教务），
+         而且课程不止这几门。课程一多，横向卡带会难用。
+         备选解法：近期有课 / 有任务的排前面，其余收进「全部课程」下拉。
+         产品定了再改，先把容器留在这儿。 -->
+    <div class="lib-courses">
+      <button class="lib-course" :class="{ on: course === null }" @click="pickCourse(null)">
+        <span class="lc-name">全部资料</span>
+        <span class="lc-sub">{{ all.length }} 份 · {{ courseCount }} 门课</span>
+      </button>
+      <button class="lib-course" v-for="c in courseTabs" :key="c.name"
+              :class="{ on: course === c.name }" @click="pickCourse(c.name)">
+        <span class="lc-name">{{ c.name }}</span>
+        <span class="lc-sub">{{ c.count }} 份 · {{ c.latest }}</span>
+      </button>
+    </div>
+
+    <!-- ================= 工具条 ================= -->
+    <div class="toolbar">
+      <div class="tb-line">
+        <t-input v-model="q" placeholder="搜文件名、课程、说明" clearable style="width:250px">
+          <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
+        </t-input>
+        <t-select v-model="fCat" :options="catOptions" style="width:116px"></t-select>
+        <t-select v-model="sortBy" :options="sortOptions" style="width:136px"></t-select>
+
+        <span class="sp"></span>
+
+        <span class="tb-count">
+          共 {{ all.length }} 份，筛出 <b>{{ shown.length }}</b> 份
+        </span>
+
+        <div class="lib-views">
+          <button :class="{ on: view === 'list' }" @click="view = 'list'" title="列表视图">
+            <lib-icon name="rows" :size="14"></lib-icon>列表
+          </button>
+          <button :class="{ on: view === 'flow' }" @click="view = 'flow'" title="卡片流视图">
+            <lib-icon name="flow" :size="14"></lib-icon>卡片流
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 列表视图 ================= -->
+    <div class="tbl-card" v-show="view === 'list'">
+      <div class="tbl-scroll">
+        <table class="tasks lib-tbl">
+          <colgroup>
+            <col />
+            <col style="width:118px" />
+            <col style="width:74px" />
+            <col style="width:78px" />
+            <col style="width:92px" />
+            <col style="width:76px" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>资料名称</th>
+              <th>课程</th>
+              <th>类型</th>
+              <th>大小</th>
+              <th>更新时间</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in shown" :key="r.id" @click="open(r)">
+              <td>
+                <div class="lib-name">
+                  <span class="lib-fico" :class="r.ext">{{ extText(r.ext) }}</span>
+                  <div style="min-width:0">
+                    <div class="t-title">{{ r.title }}</div>
+                    <div class="lib-sub">
+                      下载 {{ r.download_count }} 次 · {{ r.uploaded_by }} 上传
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td>{{ r.course_name }}</td>
+              <td><span class="tag cat" :class="catCls(r.category)">{{ r.category }}</span></td>
+              <td><span class="lib-num">{{ sizeText(r.size) }}</span></td>
+              <td><span class="lib-num" style="font-size:12px;color:var(--ink-3)">{{ r.updated_at }}</span></td>
+              <td @click.stop>
+                <div class="lib-ops">
+                  <button :class="{ on: r.faved }" :title="r.faved ? '取消收藏' : '收藏'"
+                          @click="toggleFav(r)">
+                    <lib-icon name="star" :filled="r.faved" :size="16"></lib-icon>
+                  </button>
+                  <button class="dl" title="下载" @click="download(r)">
+                    <lib-icon name="download" :size="16"></lib-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="empty" v-if="!shown.length">
+          <div class="em-ico"><lib-icon name="file" :size="24"></lib-icon></div>
+          <p>{{ emptyText }}</p>
+          <div class="em-act">
+            <t-button v-if="hasFilter" variant="outline" size="small" @click="resetFilter">清空筛选</t-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 卡片流视图 ================= -->
+    <div class="tbl-card" v-show="view === 'flow'">
+      <div class="tbl-scroll">
+        <div class="lib-flow" v-if="shown.length">
+          <article class="lib-card" v-for="r in shown" :key="r.id" @click="open(r)">
+            <div class="lib-cover" :class="[r.ext, 'h' + r.cover_h]">
+              <span class="cv-cat">{{ r.category }}</span>
+              <span class="cv-name">{{ r.course_name }}</span>
+              <span class="cv-ext">{{ extText(r.ext) }}</span>
+            </div>
+            <div class="lib-card-bd">
+              <div class="lc-title">{{ r.title }}</div>
+              <div class="lc-meta">{{ r.course_name }} · {{ sizeText(r.size) }}</div>
+              <div class="lc-foot">
+                <span>{{ r.updated_at }}</span>
+                <span>下载 {{ r.download_count }}</span>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="empty" v-if="!shown.length">
+          <div class="em-ico"><lib-icon name="file" :size="24"></lib-icon></div>
+          <p>{{ emptyText }}</p>
+          <div class="em-act">
+            <t-button v-if="hasFilter" variant="outline" size="small" @click="resetFilter">清空筛选</t-button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= 详情抽屉 ================= -->
+    <t-drawer v-model:visible="drawerVisible" size="480px" :footer="false" header="资料详情">
+
+      <template v-if="current">
+        <div class="lib-dw-head">
+          <span class="lib-dw-ico" :class="current.ext">{{ extText(current.ext) }}</span>
+          <div style="min-width:0">
+            <h3 class="dw-title" style="margin-bottom:6px">{{ current.title }}</h3>
+            <div class="dw-sub">
+              <span class="tag cat" :class="catCls(current.category)">{{ current.category }}</span>
+              <span class="tag src">{{ current.course_name }}</span>
+            </div>
+          </div>
+        </div>
+
+        <table class="lib-dw-meta">
+          <tr>
+            <th>格式</th>
+            <td>{{ extText(current.ext) }} · {{ sizeText(current.size) }}</td>
+          </tr>
+          <tr>
+            <th>上传者</th>
+            <td>{{ current.uploaded_by }}</td>
+          </tr>
+          <tr>
+            <th>更新时间</th>
+            <td>{{ current.updated_at }}</td>
+          </tr>
+          <tr>
+            <th>下载次数</th>
+            <td>{{ current.download_count }} 次</td>
+          </tr>
+        </table>
+
+        <div class="lib-dw-desc">{{ current.description }}</div>
+
+        <div class="dw-acts" style="margin-top:14px">
+          <t-button theme="primary" @click="download(current)">
+            <lib-icon name="download" :size="15" style="margin-right:5px"></lib-icon>下载
+          </t-button>
+          <t-button variant="outline" @click="toggleFav(current)">
+            <lib-icon name="star" :filled="current.faved" :size="15" style="margin-right:5px"></lib-icon>
+            {{ current.faved ? '已收藏' : '收藏' }}
+          </t-button>
+        </div>
+
+        <div class="lib-rel" v-if="siblings.length">
+          <div class="lib-rel-t">{{ current.course_name }} 的其他资料</div>
+          <div class="lib-rel-row" v-for="s in siblings" :key="s.id" @click="open(s)">
+            <lib-icon name="file" :size="14" style="color:var(--ink-4)"></lib-icon>
+            <span class="rr-t">{{ s.title }}</span>
+            <span class="rr-s">{{ s.category }} · {{ sizeText(s.size) }}</span>
+          </div>
+        </div>
+      </template>
+
+    </t-drawer>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>
+(function () {
+  const C = window.APP_CONFIG;
+  const M = window.MOCK;
+
+  /* ============================================================
+     资料数据（resource / resource_category / resource_favorite）
+     数据在 mock.js 的 MOCK.resources 里——顶栏全局搜索也要读同一份，
+     放在页面里搜索就看不到资料库了。接接口时整体换成
+     GET /api/resources 的返回，其余代码不动。
+     ============================================================ */
+  const RES = M.resources;
+
+  /* 关键词匹配统一走全局搜索的口径：连续命中 + 简称（搜「高数」也能出
+     「高等数学」）。不这么干，面板说「资料 5 条」、点进资料页却是 0 条。 */
+  function kwHit(text, kw) {
+    const S = window.AppSearch;
+    if (S && S.hit) return S.hit(text, kw);
+    return String(text == null ? '' : text).toLowerCase().indexOf(kw) >= 0;
+  }
+
+  /* 收藏落 sessionStorage，和其它页的演示态一个口径 */
+  const FAV_KEY = 'uniflow.proto.lib.fav.v1';
+  function readFav() {
+    try {
+      const m = JSON.parse(sessionStorage.getItem(FAV_KEY));
+      return m && typeof m === 'object' ? m : {};
+    } catch (e) { return {}; }
+  }
+  function writeFav(map) {
+    try { sessionStorage.setItem(FAV_KEY, JSON.stringify(map)); } catch (e) {}
+  }
+
+  /* ---------- 图标 ----------
+     shell.js 的图标库里没有下载 / 收藏 / 视图这几类，资料库自己要用的
+     就在这里补，不改全站图标表 */
+  const LIB_ICONS = {
+    download: '<path d="M12 4.4v10.6"/><path d="M7.4 10.6L12 15.2l4.6-4.6"/><path d="M4.6 19.2h14.8"/>',
+    upload:   '<path d="M12 19.4V8.8"/><path d="M7.4 13.4L12 8.8l4.6 4.6"/><path d="M4.6 4.8h14.8"/>',
+    star:     '<path d="M12 4.2l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16.5l-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z"/>',
+    rows:     '<rect x="3.6" y="4.6" width="16.8" height="3.8" rx="1.2"/><rect x="3.6" y="10.1" width="16.8" height="3.8" rx="1.2"/><rect x="3.6" y="15.6" width="16.8" height="3.8" rx="1.2"/>',
+    flow:     '<rect x="3.6" y="3.6" width="7.2" height="9.6" rx="1.4"/><rect x="13.2" y="3.6" width="7.2" height="6.2" rx="1.4"/><rect x="3.6" y="15.4" width="7.2" height="5" rx="1.4"/><rect x="13.2" y="11.9" width="7.2" height="8.5" rx="1.4"/>',
+    file:     '<path d="M6.6 3.8h6.8L18 8.4V20H6.6z"/><path d="M13.4 3.8v4.6H18"/>'
+  };
+
+  const LibIcon = {
+    name: 'LibIcon',
+    props: {
+      name: { type: String, default: 'file' },
+      size: { type: [Number, String], default: 16 },
+      filled: { type: Boolean, default: false }
+    },
+    computed: {
+      inner() { return LIB_ICONS[this.name] || LIB_ICONS.file; }
+    },
+    template:
+      '<svg :width="size" :height="size" viewBox="0 0 24 24" ' +
+      ':fill="filled ? \'currentColor\' : \'none\'" stroke="currentColor" ' +
+      'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ' +
+      'style="display:block;flex:0 0 auto" v-html="inner"></svg>'
+  };
+
+  const CAT_CLS = { '课件': 'k-ppt', '笔记': 'k-note', '习题': 'k-ex', '复习': 'k-rev' };
+
+  mountApp({
+    components: { 'lib-icon': LibIcon },
+
+    data() {
+      const favMap = readFav();
+      /* 首次进来给两份预置收藏，否则「只看收藏 0」是个禁用按钮，
+         看不出收藏这条路是怎么走的 */
+      if (!Object.keys(favMap).length) {
+        favMap[6] = 1;
+        favMap[22] = 1;
+        writeFav(favMap);
+      }
+
+      const list = RES.map(function (r) {
+        return Object.assign({}, r, { faved: !!favMap[r.id] });
+      });
+
+      return {
+        all: list,
+        q: '',
+        course: null,
+        fCat: 'all',
+        sortBy: 'recent',
+        view: 'list',
+        favOnly: false,
+        drawerVisible: false,
+        current: null,
+        favMap: favMap
+      };
+    },
+
+    computed: {
+      courseCount() {
+        const seen = {};
+        this.all.forEach(function (r) { seen[r.course_name] = 1; });
+        return Object.keys(seen).length;
+      },
+
+      /* 课程卡带：按 mock 里的课程顺序出，没有资料的课不占位 */
+      courseTabs() {
+        const seen = {};
+        const out = [];
+        const self = this;
+        M.courses.forEach(function (c) {
+          if (seen[c.name]) return;
+          seen[c.name] = 1;
+          const items = self.all.filter(function (r) { return r.course_name === c.name; });
+          if (!items.length) return;
+          const latest = items.slice().sort(function (a, b) {
+            return a.updated_at < b.updated_at ? 1 : -1;
+          })[0];
+          out.push({ name: c.name, count: items.length, latest: '最近 ' + latest.updated_at.slice(5) });
+        });
+        return out;
+      },
+
+      favCount() {
+        return this.all.filter(function (r) { return r.faved; }).length;
+      },
+
+      headLine() {
+        /* 「本周」按第 12 周周一起算，和日程页同一口径 */
+        const week = this.all.filter(function (r) {
+          return r.updated_at >= '2026-11-16';
+        }).length;
+        return this.all.length + ' 份资料 · ' + this.courseCount + ' 门课程有资料 · 本周新增 ' + week + ' 份';
+      },
+
+      shown() {
+        const self = this;
+        let list = this.all.slice();
+
+        if (this.favOnly) list = list.filter(function (r) { return r.faved; });
+        if (this.course) list = list.filter(function (r) { return r.course_name === self.course; });
+        if (this.fCat !== 'all') list = list.filter(function (r) { return r.category === self.fCat; });
+
+        const kw = this.q.trim().toLowerCase();
+        if (kw) {
+          list = list.filter(function (r) {
+            return kwHit(r.title, kw) || kwHit(r.course_name, kw) || kwHit(r.description, kw);
+          });
+        }
+
+        const sort = this.sortBy;
+        list.sort(function (a, b) {
+          if (sort === 'name')   return a.title.localeCompare(b.title, 'zh');
+          if (sort === 'size')   return b.size - a.size;
+          if (sort === 'hot')    return b.download_count - a.download_count;
+          return a.updated_at < b.updated_at ? 1 : (a.updated_at > b.updated_at ? -1 : b.id - a.id);
+        });
+
+        return list;
+      },
+
+      hasFilter() {
+        return !!(this.q.trim() || this.course || this.fCat !== 'all' || this.favOnly);
+      },
+
+      emptyText() {
+        if (this.favOnly) return '还没有收藏任何资料。看到有用的点一下星标，就收在这里。';
+        if (this.course) return '「' + this.course + '」下没有符合条件的资料。';
+        return '没有符合当前条件的资料，换个关键词或者清空筛选试试。';
+      },
+
+      siblings() {
+        if (!this.current) return [];
+        const cur = this.current;
+        return this.all
+          .filter(function (r) { return r.course_name === cur.course_name && r.id !== cur.id; })
+          .sort(function (a, b) { return a.updated_at < b.updated_at ? 1 : -1; })
+          .slice(0, 5);
+      },
+
+      catOptions() {
+        return [
+          { label: '全部类型', value: 'all' },
+          { label: '课件', value: '课件' },
+          { label: '笔记', value: '笔记' },
+          { label: '习题', value: '习题' },
+          { label: '复习', value: '复习' }
+        ];
+      },
+
+      sortOptions() {
+        return [
+          { label: '最近更新', value: 'recent' },
+          { label: '按名称', value: 'name' },
+          { label: '按大小', value: 'size' },
+          { label: '下载最多', value: 'hot' }
+        ];
+      }
+    },
+
+    methods: {
+      extText(ext) { return String(ext || '').toUpperCase(); },
+      catCls(cat) { return CAT_CLS[cat] || ''; },
+
+      sizeText(kb) {
+        if (kb >= 1024) return (kb / 1024).toFixed(1) + ' MB';
+        return kb + ' KB';
+      },
+
+      pickCourse(name) {
+        this.course = (this.course === name) ? null : name;
+      },
+
+      toggleFavOnly() {
+        this.favOnly = !this.favOnly;
+        if (!this.favCount) this.favOnly = false;
+      },
+
+      toggleFav(r) {
+        r.faved = !r.faved;
+        this.favMap[r.id] = r.faved ? 1 : 0;
+        writeFav(this.favMap);
+        TDesign.MessagePlugin[r.faved ? 'success' : 'info'](
+          r.faved ? '已收藏：' + r.title : '已取消收藏'
+        );
+      },
+
+      download(r) {
+        TDesign.MessagePlugin.success('演示环境不下载真实文件：' + r.title + '（' + this.sizeText(r.size) + '）');
+      },
+
+      open(r) {
+        this.current = r;
+        this.drawerVisible = true;
+      },
+
+      resetFilter() {
+        this.q = '';
+        this.course = null;
+        this.fCat = 'all';
+        this.favOnly = false;
+      }
+    },
+
+    mounted() {
+      document.title = '学习资料库 · ' + C.brand.name;
+
+      /* 深链接：?view=flow 直接进卡片流，?open=6 直接开某份资料的详情，
+         ?q=关键词 从顶栏搜索「查看全部」过来，把词灌进筛选框
+         （和任务页的 ?id= 一个路子，方便把某个状态发给别人看） */
+      const qs = new URLSearchParams(location.search);
+      if (qs.get('view') === 'flow') this.view = 'flow';
+      if (qs.get('q')) this.q = qs.get('q');
+
+      const openId = Number(qs.get('open'));
+      if (openId) {
+        const self = this;
+        const hit = this.all.filter(function (x) { return x.id === openId; })[0];
+        if (hit) self.open(hit);
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

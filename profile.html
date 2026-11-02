@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>个人中心</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+<style>
+  /* ================= 个人中心 ================= */
+  .pf-card {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  }
+
+  .sec { border-bottom: 1px solid var(--line); }
+  .sec:last-child { border-bottom: 0; }
+  .sec-hd { display: flex; align-items: center; justify-content: space-between; padding: 11px 18px 0; }
+  .sec-hd h3 { margin: 0; font-size: 13px; font-weight: 500; color: var(--ink-1); }
+  .sec-hd .hint { font-size: 11.5px; color: var(--ink-3); }
+  .sec-bd { padding: 11px 18px 13px; }
+
+  /* 只读信息 */
+  .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 18px; }
+  .kv-i .k { font-size: 11.5px; color: var(--ink-3); margin-bottom: 3px; }
+  .kv-i .v { font-size: 13px; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  .ro-note {
+    margin-top: 12px; padding: 8px 11px; border-radius: 6px;
+    background: #F8F9FA; border: 1px solid var(--line-2);
+    font-size: 11.5px; color: var(--ink-3); line-height: 1.6;
+  }
+
+  /* 设置行 */
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 0; border-bottom: 1px dashed var(--line-2);
+  }
+  .row:last-child { border-bottom: 0; padding-bottom: 0; }
+  .row:first-child { padding-top: 0; }
+  .row-lb { width: 84px; flex: 0 0 auto; font-size: 12.5px; color: var(--ink-2); }
+  .row-ct { flex: 1; min-width: 0; }
+  .row-hint { font-size: 11px; color: var(--ink-3); }
+
+  .chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip {
+    height: 28px; padding: 0 11px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--line); background: #fff; font-family: inherit;
+    font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 5px;
+  }
+  .chip em { font-style: normal; font-size: 10.5px; color: var(--ink-4); }
+  .chip:hover { border-color: var(--brand-4); }
+  .chip.on { background: var(--brand-1); border-color: var(--brand-5); color: var(--brand-9); font-weight: 500; }
+  .chip.on em { color: var(--brand-7); }
+
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+  .seg button {
+    height: 28px; padding: 0 11px; border: 0; background: #fff; cursor: pointer;
+    font-size: 12px; color: var(--ink-2); font-family: inherit; border-right: 1px solid var(--line);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button.on { background: var(--brand-1); color: var(--brand-9); font-weight: 500; }
+
+  /* 二级子项：学习偏好 */
+  .sub-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 13px; border: 1px solid var(--line); border-radius: 8px;
+    cursor: pointer; transition: border-color .12s, background .12s;
+  }
+  .sub-item:hover { border-color: var(--brand-4); background: #FCFEFE; }
+  .sub-item.open { border-color: var(--brand-3); background: var(--brand-1); }
+  .sub-main { flex: 1; min-width: 0; }
+  .sub-t { font-size: 13px; color: var(--ink-1); }
+  .sub-d {
+    font-size: 11.5px; color: var(--ink-3); margin-top: 3px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .sub-act { font-size: 12px; color: var(--brand-7); flex: 0 0 auto; }
+  .sub-arrow { color: var(--ink-4); transition: transform .15s; flex: 0 0 auto; }
+  .sub-arrow.open { transform: rotate(180deg); color: var(--brand-7); }
+
+  .sub-item .sub-arrow { color: var(--ink-4); }
+
+  /* 抽屉里的偏好面板 */
+  .dr-body { padding: 0 22px 22px; }
+  .dr-lead { margin: 0 0 14px; font-size: 12.5px; color: var(--ink-3); line-height: 1.7; }
+  .dr-sec { margin-bottom: 18px; }
+  .dr-sec:last-of-type { margin-bottom: 0; }
+  .dr-sec-t {
+    font-size: 12px; font-weight: 500; color: var(--ink-2);
+    padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line);
+  }
+  .dr-body .row-t { font-size: 12.5px; color: var(--ink-1); }
+  .dr-body .row-d { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
+  .dr-foot {
+    position: sticky; bottom: 0; margin: 16px -22px -22px; padding: 12px 22px;
+    background: #fff; border-top: 1px solid var(--line); display: flex; justify-content: flex-end;
+  }
+
+  /* 例外 */
+  .ex-list { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ex-item {
+    display: flex; align-items: center; gap: 7px;
+    height: 28px; padding: 0 8px 0 10px; border-radius: 5px;
+    background: var(--alert-bg); border: 1px solid #F3D5C4; font-size: 11.5px; color: #9A3406;
+  }
+  .ex-item .x { cursor: pointer; color: #B98A45; font-size: 13px; line-height: 1; padding: 0 2px; border-radius: 3px; }
+  .ex-item .x:hover { background: #F8DECE; color: #9A3406; }
+  .ex-add {
+    height: 28px; padding: 0 10px; border-radius: 5px; cursor: pointer;
+    border: 1px dashed var(--brand-4); background: #fff; color: var(--brand-8);
+    font-size: 11.5px; font-family: inherit;
+  }
+  .ex-add:hover { background: var(--brand-1); }
+
+  /* 推导 + 反馈 */
+  .derive {
+    padding: 10px 12px; border-radius: 7px;
+    background: var(--brand-1); border: 1px solid var(--brand-3);
+    font-size: 12px; color: var(--brand-9); line-height: 1.65;
+  }
+  .derive b { font-weight: 500; }
+  .derive .k { color: var(--brand-8); font-weight: 500; }
+
+  .feedback {
+    display: flex; align-items: center; gap: 9px;
+    margin-top: 9px; padding: 8px 11px; border-radius: 7px;
+    font-size: 11.5px; line-height: 1.55;
+  }
+  .feedback.ok { background: #F3FAF4; border: 1px solid #D9EFDE; color: #2F7A48; }
+  .feedback.warn { background: var(--red-bg); border: 1px solid var(--red-line); color: #8C3A33; }
+  .feedback b { font-weight: 500; }
+  .feedback a { color: inherit; text-decoration: underline; margin-left: auto; white-space: nowrap; }
+
+  /* 登录记录 */
+  .log-list { font-size: 12.5px; }
+  .log-i {
+    display: flex; align-items: center; gap: 10px;
+    padding: 7px 0; border-bottom: 1px dashed var(--line-2); color: var(--ink-2);
+  }
+  .log-i:last-child { border-bottom: 0; }
+  .log-i .t { width: 130px; font-variant-numeric: tabular-nums; color: var(--ink-3); }
+  .log-i .d { flex: 1; }
+  .log-i .ip { color: var(--ink-4); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+  .ss-line { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-1); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); flex: 0 0 auto; }
+  .dot.off { background: var(--ink-4); }
+
+  .dr-body .row:first-child { padding-top: 0; }
+  .ex-form .row { border: 0; padding: 0 0 12px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <app-shell active="profile">
+
+    <div class="page-head">
+      <div>
+        <h1>个人中心</h1>
+        <p>账号信息与学习设置。登录走教务统一身份认证，密码不经过本系统</p>
+      </div>
+      <div class="ph-right">
+        <t-button variant="outline" @click="logout">退出登录</t-button>
+      </div>
+    </div>
+
+    <div class="pf-card">
+
+      <!-- ============ 身份信息 ============ -->
+      <div class="sec">
+        <div class="sec-hd">
+          <h3>身份信息</h3>
+          <span class="hint">只读 · 同步自教务 · 要改走教务处</span>
+        </div>
+        <div class="sec-bd">
+          <div class="kv">
+            <div class="kv-i"><div class="k">姓名</div><div class="v">{{ user.name }}</div></div>
+            <div class="kv-i"><div class="k">学号</div><div class="v">{{ user.studentId }}</div></div>
+            <div class="kv-i"><div class="k">年级</div><div class="v">2026 级</div></div>
+            <div class="kv-i"><div class="k">学院</div><div class="v">{{ user.college }}</div></div>
+            <div class="kv-i"><div class="k">专业</div><div class="v">{{ user.major }}</div></div>
+            <div class="kv-i"><div class="k">培养层次</div><div class="v">本科</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 头像与昵称 ============ -->
+      <div class="sec">
+        <div class="sec-hd">
+          <h3>头像与昵称</h3>
+          <span class="hint">只影响界面上的称呼</span>
+        </div>
+        <div class="sec-bd">
+          <div class="row">
+            <div class="row-lb">昵称</div>
+            <div class="row-ct" style="max-width:280px">
+              <t-input v-model="nickname" placeholder="留空则显示姓名" @blur="saveNick"></t-input>
+            </div>
+            <div class="row-hint">AI 对话里这样叫你</div>
+          </div>
+          <div class="row">
+            <div class="row-lb">头像</div>
+            <div class="row-ct">
+              <div class="chip-row">
+                <button class="chip" @click="toast('头像上传在接入文件服务后开放')">上传图片</button>
+                <button class="chip" @click="toast('已恢复为姓名首字')">用姓名首字</button>
+              </div>
+            </div>
+            <div class="row-hint">不上传就显示姓名首字</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 登录方式 ============ -->
+      <div class="sec">
+        <div class="sec-hd">
+          <h3>登录方式</h3>
+          <span class="hint">统一身份认证</span>
+        </div>
+        <div class="sec-bd">
+          <div class="row">
+            <div class="row-lb">教务账号</div>
+            <div class="row-ct">
+              <div class="ss-line"><span class="dot"></span>已接通 · 学号 {{ user.studentIdMasked }}</div>
+            </div>
+            <div class="row-hint">上次登录 11/18 08:12</div>
+          </div>
+          <div class="row">
+            <div class="row-lb">数据同步</div>
+            <div class="row-ct">
+              <div class="ss-line">
+                <span class="dot" :class="{ off: !syncAllowed }"></span>
+                {{ syncAllowed ? '已授权读取课表与在读课程' : '已关闭，不再读取教务数据' }}
+              </div>
+            </div>
+            <div class="row-hint" style="margin-right:2px">仅停读课表</div>
+            <t-switch v-model="syncAllowed" size="small" @change="toggleSync"></t-switch>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 学习设置（学习偏好是它的二级子项） ============ -->
+      <div class="sec">
+        <div class="sec-hd">
+          <h3>学习设置</h3>
+          <span class="hint">决定 AI 怎么给你排学习</span>
+        </div>
+        <div class="sec-bd">
+
+          <div class="sub-item" @click="prefOpen = true">
+            <div class="sub-main">
+              <div class="sub-t">学习偏好</div>
+              <div class="sub-d">{{ prefSummary }}</div>
+            </div>
+            <span class="sub-act">调整</span>
+            <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ============ 通知与提醒 ============ -->
+      <div class="sec">
+        <div class="sec-hd">
+          <h3>通知与提醒</h3>
+          <span class="hint">系统什么时候主动找你</span>
+        </div>
+        <div class="sec-bd">
+          <div class="sub-item" @click="notifyOpen = true">
+            <div class="sub-main">
+              <div class="sub-t">提醒设置</div>
+              <div class="sub-d">{{ notifySummary }}</div>
+            </div>
+            <span class="sub-act">调整</span>
+            <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ 登录记录 ============ -->
+      <div class="sec">
+        <div class="sec-hd">
+          <h3>登录记录</h3>
+          <span class="hint">
+            最近 3 次 · 看到不认识的记录，先去教务改密码
+            <t-button variant="text" size="small" theme="primary" @click="logoutAll">退出全部设备</t-button>
+          </span>
+        </div>
+        <div class="sec-bd">
+          <div class="log-list">
+            <div class="log-i" v-for="l in logins" :key="l.t">
+              <span class="t">{{ l.t }}</span>
+              <span class="d">{{ l.d }}</span>
+              <span class="ip">{{ l.ip }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 学习偏好 · 二级面板 -->
+    <t-drawer v-model:visible="prefOpen" size="560px" :footer="false" header="学习偏好">
+      <div class="dr-body">
+        <p class="dr-lead">
+          这几项决定 AI 把学习排在什么时候。改完立刻影响候选计划的排法。
+        </p>
+
+            <div class="row">
+              <div class="row-lb">什么时候学</div>
+              <div class="row-ct">
+                <div class="chip-row">
+                  <button v-for="s in slotDefs" :key="s.k" class="chip"
+                          :class="{ on: slots.indexOf(s.k) > -1 }" @click="toggleSlot(s.k)">
+                    {{ s.t }}<em>{{ s.range }}</em>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="row-lb">周末</div>
+              <div class="seg">
+                <button v-for="o in weekendOpts" :key="o.v"
+                        :class="{ on: weekend === o.v }" @click="weekend = o.v">{{ o.t }}</button>
+              </div>
+              <div class="row-hint">周末排不排，差别很大</div>
+            </div>
+            <div class="row">
+              <div class="row-lb">一次学多久</div>
+              <div class="seg">
+                <button v-for="m in [25, 45, 60, 90]" :key="m"
+                        :class="{ on: blockLen === m }" @click="blockLen = m">{{ m }} 分</button>
+              </div>
+              <div class="row-hint">低于这个长度不如不开</div>
+            </div>
+            <div class="row">
+              <div class="row-lb">每天最多</div>
+              <div class="seg">
+                <button v-for="o in capOpts" :key="o.v"
+                        :class="{ on: dailyCap === o.v }" @click="dailyCap = o.v">{{ o.t }}</button>
+              </div>
+              <div class="row-hint">防止把一天填满</div>
+            </div>
+            <div class="row">
+              <div class="row-lb">截止前留</div>
+              <div class="seg">
+                <button v-for="o in bufOpts" :key="o.v"
+                        :class="{ on: buffer === o.v }" @click="buffer = o.v">{{ o.t }}</button>
+              </div>
+              <div class="row-hint">不喜欢卡点交就往前留</div>
+            </div>
+            <div class="row">
+              <div class="row-lb">这段别排</div>
+              <div class="row-ct">
+                <div class="ex-list">
+                  <div class="ex-item" v-for="e in exceptions" :key="e.id">
+                    <span>{{ dwText(e.dw) }} {{ hh2(e.s) }}–{{ hh2(e.e) }} {{ e.label }}</span>
+                    <span class="x" @click.stop="removeEx(e.id)">×</span>
+                  </div>
+                  <button class="ex-add" @click.stop="openEx">+ 加一条</button>
+                </div>
+              </div>
+              <div class="row-hint">偏好是「尽量」，例外是「一定不行」</div>
+            </div>
+
+            <div style="margin-top:12px">
+              <div class="derive">
+                <b>我这样理解你：</b><span v-html="derivedText"></span>
+              </div>
+              <div class="feedback" :class="broken.length ? 'warn' : 'ok'">
+                <app-icon :name="broken.length ? 'warning' : 'check'" :size="15"></app-icon>
+                <div v-if="broken.length">
+                  本周有 <b>{{ broken.length }}</b> 个已确认的学习时段落在偏好之外（{{ brokenText }}），保存后需要重新安排。
+                </div>
+                <div v-else>
+                  这套偏好本周能排下 <b>{{ placedCount }} / {{ plan.tasks.length }}</b> 项任务，共 <b>{{ hh(availMinutes) }}</b> 空档。
+                </div>
+                <a href="ai-plan.html">去排一次看看</a>
+              </div>
+            </div>
+
+        <div class="dr-foot">
+          <t-button theme="primary" @click="prefOpen = false">完成</t-button>
+        </div>
+      </div>
+    </t-drawer>
+
+    <!-- 通知与提醒 · 二级面板 -->
+    <t-drawer v-model:visible="notifyOpen" size="560px" :footer="false" header="通知与提醒">
+      <div class="dr-body">
+        <p class="dr-lead">
+          这里配的是「系统能不能主动找你」。消息列表在顶部铃铛里，两件事别混。
+        </p>
+
+        <div class="dr-sec">
+          <div class="dr-sec-t">什么时候提醒</div>
+          <div class="row">
+            <div class="row-lb">截止提醒</div>
+            <div class="seg">
+              <button v-for="o in remindOpts" :key="o.v"
+                      :class="{ on: remind === o.v }" @click="remind = o.v">{{ o.t }}</button>
+            </div>
+            <div class="row-hint">距离截止多久提醒一次</div>
+          </div>
+          <div class="row">
+            <div class="row-lb">每日摘要</div>
+            <div class="seg">
+              <button v-for="o in briefOpts" :key="o.v"
+                      :class="{ on: brief === o.v }" @click="brief = o.v">{{ o.t }}</button>
+            </div>
+            <div class="row-hint">今天要做什么，一早一条</div>
+          </div>
+          <div class="row">
+            <div class="row-lb">免打扰</div>
+            <div class="seg">
+              <button v-for="o in quietOpts" :key="o.v"
+                      :class="{ on: quiet === o.v }" @click="quiet = o.v">{{ o.t }}</button>
+            </div>
+            <div class="row-hint">这段时间不推送</div>
+          </div>
+        </div>
+
+        <div class="dr-sec">
+          <div class="dr-sec-t">哪些事要提醒我</div>
+          <div class="row" v-for="n in notifies" :key="n.k">
+            <div class="row-ct">
+              <div class="row-t">{{ n.t }}</div>
+              <div class="row-d">{{ n.d }}</div>
+            </div>
+            <t-switch v-model="n.on" size="small" @change="toast(n.on ? '已开启：' + n.t : '已关闭：' + n.t)"></t-switch>
+          </div>
+        </div>
+
+        <div class="dr-sec">
+          <div class="dr-sec-t">推送到哪</div>
+          <div class="row">
+            <div class="row-lb">站内</div>
+            <div class="row-ct" style="font-size:12.5px;color:var(--ink-2)">顶部铃铛，始终开启</div>
+            <t-switch :model-value="true" size="small" disabled></t-switch>
+          </div>
+          <div class="row">
+            <div class="row-lb">邮件</div>
+            <div class="row-ct" style="font-size:12.5px;color:var(--ink-2)">{{ mail }}</div>
+            <t-switch v-model="mailOn" size="small" @change="toast(mailOn ? '已开启邮件提醒' : '已关闭邮件提醒')"></t-switch>
+          </div>
+        </div>
+
+        <div class="dr-foot">
+          <t-button theme="primary" @click="notifyOpen = false">完成</t-button>
+        </div>
+      </div>
+    </t-drawer>
+
+    <!-- 添加例外 -->
+    <t-dialog v-model:visible="exVisible" header="加一条「别排」的时间" width="400px"
+              confirm-btn="加进来" @confirm="saveEx">
+      <div class="ex-form">
+        <div class="row">
+          <div class="row-lb" style="width:52px">每周</div>
+          <t-select v-model="exDraft.dw" :options="dwOpts" style="width:120px"></t-select>
+        </div>
+        <div class="row">
+          <div class="row-lb" style="width:52px">从</div>
+          <t-select v-model="exDraft.s" :options="hourOpts" style="width:120px"></t-select>
+          <div class="row-lb" style="width:32px;text-align:center">到</div>
+          <t-select v-model="exDraft.e" :options="hourOpts" style="width:120px"></t-select>
+        </div>
+        <div class="row">
+          <div class="row-lb" style="width:52px">什么事</div>
+          <t-input v-model="exDraft.label" placeholder="家教 / 实习 / 例会"></t-input>
+        </div>
+        <div style="font-size:11.5px;color:var(--ink-3);line-height:1.6">
+          例外是硬约束，AI 不会往这里面排东西。
+        </div>
+      </div>
+    </t-dialog>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>
+(function () {
+  var U = window.AppUtil;
+  var M = window.MOCK;
+  var C = window.APP_CONFIG;
+
+  var TODAY = M.today;
+  var NOW = U.NOW;
+  var H0 = 7, H1 = 23;
+  var WEEK = Math.floor(U.dayDiff(C.term.startDate, TODAY) / 7) + 1;
+  var MIN_BLOCK = 25;
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function hm2min(t) { var p = String(t).split(':'); return Number(p[0]) * 60 + Number(p[1]); }
+
+  mountApp({
+    data: function () {
+      var days = [];
+      for (var i = -2; i <= 4; i++) {
+        var date = U.addDays(TODAY, i);
+        var dw = U.dowOf(date);
+        days.push({ date: date, dw: ['日','一','二','三','四','五','六'][dw], num: dw === 0 ? 7 : dw, isToday: date === TODAY });
+      }
+      var hours = [];
+      for (var h = H0; h < H1; h++) hours.push(h);
+      var hourOpts = [];
+      for (var x = H0; x <= H1; x++) hourOpts.push({ label: pad(x) + ':00', value: x });
+
+      return {
+        user: C.demoUser,
+        nickname: C.demoUser.nickname,
+        syncAllowed: true,
+        logins: [
+          { t: '11/18 08:12', d: 'Chrome · Windows', ip: '10.12.**.**' },
+          { t: '11/17 19:40', d: 'Safari · iPhone', ip: '10.12.**.**' },
+          { t: '11/15 09:05', d: 'Chrome · Windows', ip: '10.12.**.**' }
+        ],
+
+        prefOpen: false,
+        notifyOpen: false,
+
+        remind: '1d',
+        remindOpts: [{ v: 'same', t: '当天' }, { v: '1d', t: '提前 1 天' }, { v: '3d', t: '提前 3 天' }],
+        brief: '08',
+        briefOpts: [{ v: 'off', t: '不推送' }, { v: '08', t: '08:00' }, { v: '20', t: '20:00' }],
+        quiet: '23',
+        quietOpts: [{ v: 'off', t: '不设置' }, { v: '23', t: '23:00 起' }, { v: '22', t: '22:00 起' }],
+        mailOn: false,
+        mail: C.demoUser.studentId + '@cqupt.edu.cn',
+        notifies: [
+          { k: 'due',      t: '任务即将截止',     d: '按上面的提前量提醒',         on: true  },
+          { k: 'plan',     t: '计划有变更要确认', d: 'AI 重排后等你确认才生效',    on: true  },
+          { k: 'conflict', t: '时间冲突',         d: '课程、考试和个人安排撞车时', on: true  },
+          { k: 'newtask',  t: '教务同步到新任务', d: '作业被抓取进来时',           on: false }
+        ],
+        days: days, hours: hours,
+        slotDefs: [
+          { k: 'morning', t: '早上', range: '7–9', h: [7, 8] },
+          { k: 'am', t: '上午', range: '9–12', h: [9, 10, 11] },
+          { k: 'pm', t: '下午', range: '14–18', h: [14, 15, 16, 17] },
+          { k: 'eve', t: '晚上', range: '19–22', h: [19, 20, 21] },
+          { k: 'night', t: '深夜', range: '22–23', h: [22] }
+        ],
+        slots: ['eve'],
+        weekend: 'all',
+        weekendOpts: [{ v: 'all', t: '都算' }, { v: 'one', t: '只留一天' }, { v: 'none', t: '不排' }],
+        blockLen: 45,
+        dailyCap: 180,
+        capOpts: [{ v: 60, t: '1 小时' }, { v: 120, t: '2 小时' }, { v: 180, t: '3 小时' }, { v: 240, t: '4 小时' }],
+        buffer: 0,
+        bufOpts: [{ v: 0, t: '当天' }, { v: 1, t: '提前 1 天' }, { v: 2, t: '提前 2 天' }],
+
+        exceptions: [],
+        exVisible: false,
+        exDraft: { dw: 4, s: 19, e: 21, label: '' },
+        dwOpts: [
+          { label: '周一', value: 1 }, { label: '周二', value: 2 }, { label: '周三', value: 3 },
+          { label: '周四', value: 4 }, { label: '周五', value: 5 }, { label: '周六', value: 6 },
+          { label: '周日', value: 7 }
+        ],
+        hourOpts: hourOpts,
+
+        confirmed: M.sessions.filter(function (s) {
+          return (s.status === 'confirmed' || s.status === 'started') && s.date >= TODAY;
+        })
+      };
+    },
+
+    computed: {
+      /* 收起时这一行要说得清设了什么 */
+      prefSummary: function () {
+        var self = this;
+        var names = this.slotDefs.filter(function (d) { return self.slots.indexOf(d.k) > -1; })
+          .map(function (d) { return d.t; });
+        if (!names.length) return '还没设置时段，AI 不知道什么时候可以排';
+        var cap = (this.dailyCap === 60 ? 1 : this.dailyCap / 60) + ' 小时';
+        var parts = [names.join('、'), '一次 ' + this.blockLen + ' 分钟', '每天 ≤ ' + cap];
+        if (this.weekend === 'none') parts.push('周末不排');
+        else if (this.weekend === 'one') parts.push('只排周六');
+        if (this.exceptions.length) parts.push(this.exceptions.length + ' 条例外');
+        return parts.join(' · ');
+      },
+
+      notifySummary: function () {
+        var r = { same: '当天提醒', '1d': '截止前 1 天提醒', '3d': '截止前 3 天提醒' }[this.remind];
+        var b = { off: '不推送摘要', '08': '每日 08:00 摘要', '20': '每日 20:00 摘要' }[this.brief];
+        var q = { off: '', '23': '23:00 后免打扰', '22': '22:00 后免打扰' }[this.quiet];
+        var on = this.notifies.filter(function (n) { return n.on; }).length;
+        var parts = [r, b];
+        if (q) parts.push(q);
+        parts.push(on + ' 项提醒开启');
+        return parts.join(' · ');
+      },
+
+      slotHours: function () {
+        var set = {}, self = this;
+        this.slotDefs.forEach(function (d) {
+          if (self.slots.indexOf(d.k) > -1) d.h.forEach(function (h) { set[h] = true; });
+        });
+        return set;
+      },
+
+      pool: function () {
+        var map = {}, self = this;
+        this.days.forEach(function (d) {
+          if (d.num === 6 || d.num === 7) {
+            if (self.weekend === 'none') return;
+            if (self.weekend === 'one' && d.num !== 6) return;
+          }
+          self.hours.forEach(function (h) {
+            if (!self.slotHours[h]) return;
+            if (self.isException(d.num, h)) return;
+            if (self.courseAt(d.date, h)) return;
+            if (self.isPast(d.date, h)) return;
+            map[d.date + '|' + h] = true;
+          });
+        });
+        return map;
+      },
+
+      availMinutes: function () {
+        var self = this, total = 0;
+        this.days.forEach(function (d) { total += Math.min(self.dailyCap, self.availOfDay(d.date)); });
+        return total;
+      },
+
+      plan: function () {
+        var self = this;
+        var weekEnd = this.days[this.days.length - 1].date;
+        var list = M.tasks.filter(function (t) {
+          if (t.status !== 'pending' && t.status !== 'in_progress') return false;
+          if (!t.date) return false;
+          return t.date <= weekEnd;
+        }).sort(function (a, b) {
+          var ka = a.date + ' ' + (a.due || '23:59'), kb = b.date + ' ' + (b.due || '23:59');
+          if (ka !== kb) return ka < kb ? -1 : 1;
+          return b.priority - a.priority;
+        }).map(function (t, i) {
+          return { id: t.id, no: i + 1, title: t.title, need: t.estimated_minutes || 60,
+                   date: t.date, due: t.due || '23:59', placed: 0 };
+        });
+
+        var used = {};
+        list.forEach(function (t) {
+          var remain = t.need, dueMin = hm2min(t.due);
+          var limitDate = U.addDays(t.date, -self.buffer);
+          for (var di = 0; di < self.days.length && remain >= MIN_BLOCK; di++) {
+            var d = self.days[di];
+            if (d.date > limitDate) break;
+            var dayUsed = 0;
+            for (var u = H0; u < H1; u++) if (used[d.date + '|' + u]) dayUsed += used[d.date + '|' + u];
+            var dayBudget = Math.min(self.dailyCap, self.availOfDay(d.date)) - dayUsed;
+            for (var hr = H0; hr < H1 && remain >= MIN_BLOCK && dayBudget >= MIN_BLOCK; hr++) {
+              var k = d.date + '|' + hr;
+              if (!self.pool[k] || used[k]) continue;
+              if (d.date === t.date && hr * 60 >= dueMin) break;
+              var take = Math.min(self.blockLen, remain, dayBudget);
+              if (remain - take > 0 && remain - take < MIN_BLOCK) take = remain;
+              if (take < MIN_BLOCK) break;
+              used[k] = take; remain -= take; dayBudget -= take; t.placed += take;
+            }
+          }
+        });
+        return { tasks: list };
+      },
+
+      placedCount: function () {
+        return this.plan.tasks.filter(function (t) { return t.placed >= t.need; }).length;
+      },
+
+      derivedText: function () {
+        var self = this;
+        var names = this.slotDefs.filter(function (d) { return self.slots.indexOf(d.k) > -1; })
+          .map(function (d) { return d.t + ' ' + d.range; });
+        if (!names.length) return '还没选时段。选一个，我才知道什么时候可以排。';
+        var wk = { all: '周六日也算学习日', one: '只在周六排', none: '周末不排' }[this.weekend];
+        var cap = (this.dailyCap === 60 ? '1' : this.dailyCap / 60) + ' 小时';
+        var buf = ['当天截止', '截止前留 1 天', '截止前留 2 天'][this.buffer];
+        var txt = '可以学的是<span class="k">' + names.join('、') + '</span>，' + wk +
+          '；一次 <span class="k">' + this.blockLen + ' 分钟</span>；每天不超过 <span class="k">' + cap + '</span>；' + buf + '。';
+        if (this.exceptions.length) {
+          txt += ' 例外：' + this.exceptions.map(function (e) {
+            return self.dwText(e.dw) + ' ' + self.hh2(e.s) + '–' + self.hh2(e.e) + (e.label ? ' ' + e.label : '');
+          }).join('、') + ' 不排。';
+        }
+        return txt;
+      },
+
+      broken: function () {
+        var self = this;
+        return this.confirmed.filter(function (s) {
+          return !self.pool[s.date + '|' + Number(String(s.start).split(':')[0])];
+        });
+      },
+
+      brokenText: function () {
+        var self = this;
+        return this.broken.map(function (s) {
+          var t = M.tasks.filter(function (x) { return x.id === s.task_id; })[0];
+          return s.start + ' ' + (t ? t.title : '');
+        }).join('、');
+      }
+    },
+
+    methods: {
+      isPast: function (date, h) {
+        if (date < TODAY) return true;
+        if (date === TODAY) return (h * 60 + 60) <= NOW;
+        return false;
+      },
+      isException: function (num, h) {
+        var s = h * 60, e = s + 60;
+        for (var i = 0; i < this.exceptions.length; i++) {
+          var x = this.exceptions[i];
+          if (x.dw === num && x.s * 60 < e && x.e * 60 > s) return true;
+        }
+        return false;
+      },
+      courseListOf: function (date) {
+        var dw = U.dowOf(date), wd = dw === 0 ? 7 : dw;
+        return M.courses.filter(function (c) {
+          return c.weekday === wd && WEEK >= c.start_week && WEEK <= c.end_week;
+        }).map(function (c) { return { s: hm2min(c.start_time), e: hm2min(c.end_time) }; });
+      },
+      courseAt: function (date, h) {
+        var s = h * 60, e = s + 60, list = this.courseListOf(date);
+        for (var i = 0; i < list.length; i++) if (list[i].s < e && list[i].e > s) return list[i];
+        return null;
+      },
+      availOfDay: function (date) {
+        var n = 0;
+        for (var h = H0; h < H1; h++) if (this.pool[date + '|' + h]) n++;
+        return n * 60;
+      },
+      hh: function (min) {
+        var v = min / 60;
+        return (v % 1 === 0 ? v : v.toFixed(1)) + ' 小时';
+      },
+      hh2: function (x) { return pad(x) + ':00'; },
+      dwText: function (n) { return '周' + ['','一','二','三','四','五','六','日'][n]; },
+
+      toggleSlot: function (k) {
+        var i = this.slots.indexOf(k);
+        if (i > -1) this.slots.splice(i, 1); else this.slots.push(k);
+      },
+      openEx: function () {
+        this.exDraft = { dw: 4, s: 19, e: 21, label: '' };
+        this.exVisible = true;
+      },
+      saveEx: function () {
+        if (this.exDraft.e <= this.exDraft.s) { this.toast('结束时间要晚于开始时间', 'warning'); return; }
+        this.exceptions.push({
+          id: Date.now(), dw: this.exDraft.dw, s: this.exDraft.s, e: this.exDraft.e, label: this.exDraft.label || ''
+        });
+        this.exVisible = false;
+        this.toast('已加入例外');
+      },
+      removeEx: function (id) {
+        this.exceptions = this.exceptions.filter(function (x) { return x.id !== id; });
+      },
+
+      saveNick: function () {
+        C.demoUser.nickname = this.nickname;
+        this.toast('昵称已保存');
+      },
+      toggleSync: function (v) {
+        this.toast(v ? '已开启教务数据同步' : '已关闭，不再读取教务数据', v ? 'success' : 'warning');
+      },
+      toast: function (t, theme) {
+        var fn = { warning: TDesign.MessagePlugin.warning, success: TDesign.MessagePlugin.success }[theme] || TDesign.MessagePlugin.success;
+        fn(t);
+      },
+      logout: function () { this.toast('登录页在下一批交付'); },
+      logoutAll: function () { this.toast('已退出全部设备'); }
+    }
+  });
+})();
+</script>
+</body>
+</html>

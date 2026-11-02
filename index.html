@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>原型交付清单</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+<style>
+  .doc-head { margin-bottom: 14px; }
+  .doc-head h1 { margin: 0; font-size: 19px; font-weight: 500; }
+  .doc-head p { margin: 4px 0 0; font-size: 12.5px; color: var(--ink-3); }
+
+  .token-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 16px; }
+  .token {
+    display: flex; align-items: center; gap: 8px;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 7px 11px; font-size: 12px; color: var(--ink-2);
+  }
+  .token i { width: 14px; height: 14px; border-radius: 4px; display: block; }
+
+  .doc-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .doc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .doc-table th {
+    text-align: left; font-weight: 400; font-size: 11.5px; color: var(--ink-3);
+    padding: 9px 14px; background: #FAFBFC; border-bottom: 1px solid var(--line);
+  }
+  .doc-table td { padding: 11px 14px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+  .doc-table tr:last-child td { border-bottom: 0; }
+  .doc-table .name { font-weight: 500; color: var(--ink-1); }
+  .doc-table .dim { color: var(--ink-3); font-size: 12px; }
+  .go { color: var(--brand-7); text-decoration: none; font-size: 12.5px; }
+  .go:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <app-shell active="">
+
+    <div class="doc-head">
+      <h1>原型交付清单</h1>
+      <p>多文件静态站点，双击任意 html 即可浏览；所有 mock 字段对齐 backend/src/models</p>
+    </div>
+
+    <div class="token-row">
+      <div class="token"><i style="background:#006D5B"></i>主色 #006D5B 学术绿</div>
+      <div class="token"><i style="background:#005043"></i>深一档 #005043 渐变收尾</div>
+      <div class="token"><i style="background:#D3ECE6;border:1px solid #A9DBCE"></i>浅底 #D3ECE6 选中/浅标签</div>
+      <div class="token"><i style="background:#234E70"></i>学习时段 #234E70</div>
+      <div class="token"><i style="background:#B08A3E"></i>个人日程 #B08A3E</div>
+      <div class="token"><i style="background:#C2410C"></i>考试 #C2410C</div>
+      <div class="token"><i style="background:#F7F9F8;border:1px solid #E2E8E7"></i>页面底色 #F7F9F8</div>
+    </div>
+
+    <div class="doc-card">
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th style="width:34%">页面</th>
+            <th style="width:30%">对应交接文档</th>
+            <th style="width:18%">批次</th>
+            <th style="width:18%">入口</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="name">学习工作台（首页）</td>
+            <td class="dim">阶段 4</td>
+            <td class="dim">第一批 · 已交付</td>
+            <td><a class="go" href="home.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">课程与任务</td>
+            <td class="dim">阶段 1</td>
+            <td class="dim">第一批 · 已交付</td>
+            <td><a class="go" href="tasks.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">日程（周视图）</td>
+            <td class="dim">阶段 2 / 阶段 4</td>
+            <td class="dim">第一批 · 已交付</td>
+            <td><a class="go" href="schedule.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">AI 学习规划</td>
+            <td class="dim">阶段 3</td>
+            <td class="dim">第二批 · 已交付</td>
+            <td><a class="go" href="ai-plan.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">候选计划预览</td>
+            <td class="dim">阶段 3 · 规则 3–6</td>
+            <td class="dim">第二批</td>
+            <td class="dim">待交付</td>
+          </tr>
+          <tr>
+            <td class="name">动态重规划（新旧对比）</td>
+            <td class="dim">第 4 节 最小扰动</td>
+            <td class="dim">第二批</td>
+            <td class="dim">待交付 · 确认结果已并入 AI 学习规划页</td>
+          </tr>
+          <tr>
+            <td class="name">任务详情 / 新建任务</td>
+            <td class="dim">阶段 1</td>
+            <td class="dim">已并入课程与任务页</td>
+            <td><a class="go" href="tasks.html?id=2">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">学习资料库</td>
+            <td class="dim">阶段 5</td>
+            <td class="dim">第三批 · 已交付</td>
+            <td><a class="go" href="library.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">消息与通知</td>
+            <td class="dim">总体设计方案 4.1（交接文档未列此章）</td>
+            <td class="dim">第三批 · 已交付</td>
+            <td><a class="go" href="messages.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">顶栏全局搜索</td>
+            <td class="dim">全站组件（shell）</td>
+            <td class="dim">已交付。任务 / 资料 / 日程 / 课程 / 消息五类对象；支持简称（搜「高数」出「高等数学」）；Ctrl K 唤起、↑↓ 选择、↵ 直达详情（?id= / ?open= / ?event= / ?course=）；任务 / 资料 / 消息页筛选与面板同一套匹配口径</td>
+            <td><a class="go" href="home.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">个人中心（身份信息 / 头像昵称 / 登录方式 / 学习偏好）</td>
+            <td class="dim">阶段 3 · Planner 输入</td>
+            <td class="dim">第三批 · 已交付</td>
+            <td><a class="go" href="profile.html">打开 →</a></td>
+          </tr>
+          <tr>
+            <td class="name">登录</td>
+            <td class="dim">阶段 0</td>
+            <td class="dim">第三批</td>
+            <td class="dim">待交付</td>
+          </tr>
+          <tr>
+            <td class="name">系统管理（通知与提醒 / 资料 / 课程 / 接入）</td>
+            <td class="dim">阶段 6</td>
+            <td class="dim">第三批 · 通知已交付</td>
+            <td><a class="go" href="admin.html">打开 →</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </app-shell>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script src="assets/js/search.js"></script>
+<script>document.title = '原型交付清单 · ' + window.APP_CONFIG.brand.name; mountApp({});</script>
+</body>
+</html>
