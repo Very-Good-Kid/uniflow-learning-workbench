@@ -129,7 +129,9 @@ window.MOCK = {
      字段按交接文档阶段 5 定：id、title、course_id、course_name、
      category、ext、size(KB)、updated_at、uploaded_by、download_count。
      放在这里而不是资料库页里，是因为顶栏全局搜索也要读它。
-     cover_h 只服务卡片流的瀑布流错落，真实接口不需要这个字段。      */
+     cover_h 只服务卡片流的瀑布流错落，真实接口不需要这个字段。
+     status 只服务系统管理：'off' 表示已下架，资料库与全局搜索都
+     不显示已下架资料；不写该字段默认正常上架。                      */
   resources: [
     { id: 1,  title: '第五章 定积分 课件',              course_id: 1, course_name: '高等数学',   category: '课件', ext: 'pdf',  size: 3240, updated_at: '2026-11-18', uploaded_by: '李明华', download_count: 186, cover_h: 108,
       description: '定积分的概念、性质与计算，含换元法和分部积分的例题讲解。老师标注的第 3.2 节为本章重点。' },
@@ -151,6 +153,7 @@ window.MOCK = {
     { id: 9,  title: '课堂笔记（全学期）',              course_id: 3, course_name: '数据结构',   category: '笔记', ext: 'pdf',  size: 5240, updated_at: '2026-11-08', uploaded_by: '张三',   download_count: 41,  cover_h: 84,
       description: '从绪论到图的整学期笔记，手写扫描版，字有点丑但内容全。' },
     { id: 10, title: '图论算法动画演示',                course_id: 3, course_name: '数据结构',   category: '课件', ext: 'zip',  size: 12400, updated_at: '2026-10-29', uploaded_by: '王振宇', download_count: 76,  cover_h: 84,
+      status: 'off', off_reason: '版权待确认，联系上传者补授权后恢复',
       description: 'DFS、BFS、Dijkstra、最小生成树的动画演示，双击 index.html 运行。' },
 
     { id: 11, title: '第 5 章 传输层',                  course_id: 4, course_name: '计算机网络', category: '课件', ext: 'pptx', size: 6120, updated_at: '2026-11-18', uploaded_by: '陈静',   download_count: 132, cover_h: 96,
@@ -167,6 +170,7 @@ window.MOCK = {
     { id: 16, title: '第三章习题答案',                  course_id: 6, course_name: '操作系统',   category: '习题', ext: 'pdf',  size: 960,  updated_at: '2026-11-11', uploaded_by: '刘峰',   download_count: 143, cover_h: 96,
       description: '进程调度相关习题解答，第 3、5、8 题是必做的三道。' },
     { id: 17, title: '内存管理思维导图',                course_id: 6, course_name: '操作系统',   category: '笔记', ext: 'png',  size: 840,  updated_at: '2026-11-05', uploaded_by: '张三',   download_count: 28,  cover_h: 108,
+      status: 'off', off_reason: '内容与新版课件重复，先下架观察',
       description: '分页、分段、段页式的对比，一张图看完这一章。' },
 
     { id: 18, title: '六级高频词汇表',                  course_id: 5, course_name: '大学英语',   category: '笔记', ext: 'md',   size: 128,  updated_at: '2026-11-15', uploaded_by: '张三',   download_count: 34,  cover_h: 96,
@@ -326,7 +330,69 @@ window.MOCK = {
       course_id: 8, course_name: '大学物理',
       target: { kind: 'plan', object_id: null, label: '重新规划大学物理复习', sub: '当前缺口 40 分钟' },
       extract: null, attachments: [] }
-  ]
+  ],
+
+  /* ---------- 用户（user 表，系统管理用） ----------
+     字段对齐交接文档阶段 6.1：role 取 student | admin，
+     status 取 active | disabled。张三是种子管理员（演示假设当前
+     登录的就是它），「最后一个管理员」的保护逻辑要在页面上验。
+     auth_account 是统一身份认证下发的账号，登录页用它而不是学号；
+     真实值由认证中心返回，这里用姓名拼音占位。                    */
+  users: [
+    { id: 1,  student_id: '2026210001', auth_account: 'zhangsan',    name: '张三',   college: '计算机科学与技术学院', major: '计算机科学与技术',   role: 'admin',   status: 'active',   created_at: '2026-08-30', last_login_at: '2026-11-18 16:32' },
+    { id: 2,  student_id: '2026210002', auth_account: 'lisi',        name: '李四',   college: '计算机科学与技术学院', major: '计算机科学与技术',   role: 'student', status: 'active',   created_at: '2026-08-30', last_login_at: '2026-11-18 08:15' },
+    { id: 3,  student_id: '2026210003', auth_account: 'wangwu',      name: '王五',   college: '计算机科学与技术学院', major: '计算机科学与技术',   role: 'student', status: 'disabled', created_at: '2026-08-30', last_login_at: '2026-11-02 21:40' },
+    { id: 4,  student_id: '2026210004', auth_account: 'zhaoliu',     name: '赵六',   college: '软件工程学院',         major: '软件工程',           role: 'student', status: 'active',   created_at: '2026-08-31', last_login_at: '2026-11-17 19:05' },
+    { id: 5,  student_id: '2026210005', auth_account: 'chenxiaoyu',  name: '陈晓雨', college: '软件工程学院',         major: '软件工程',           role: 'student', status: 'active',   created_at: '2026-08-31', last_login_at: '2026-11-18 12:48' },
+    { id: 6,  student_id: '2026210006', auth_account: 'zhoutianlei', name: '周天磊', college: '通信与信息工程学院',   major: '通信工程',           role: 'student', status: 'active',   created_at: '2026-09-01', last_login_at: '2026-11-16 22:10' },
+    { id: 7,  student_id: '2026210007', auth_account: 'wuyutong',    name: '吴语桐', college: '经济管理学院',         major: '信息管理与信息系统', role: 'student', status: 'active',   created_at: '2026-09-01', last_login_at: '2026-11-15 14:26' },
+    { id: 8,  student_id: '2026210008', auth_account: 'zhengyiming', name: '郑一鸣', college: '计算机科学与技术学院', major: '人工智能',           role: 'student', status: 'active',   created_at: '2026-09-02', last_login_at: '2026-11-18 09:54' },
+    { id: 9,  student_id: '2026210009', auth_account: 'fenglan',     name: '冯岚',   college: '光电工程学院',         major: '电子科学与技术',     role: 'student', status: 'active',   created_at: '2026-09-02', last_login_at: '2026-11-14 18:33' },
+    { id: 10, student_id: '2026210010', auth_account: 'heziang',     name: '何子昂', college: '计算机科学与技术学院', major: '计算机科学与技术',   role: 'admin',   status: 'active',   created_at: '2026-08-30', last_login_at: '2026-11-17 23:02' }
+  ],
+
+  /* ---------- 公告（announcement 表，交接文档阶段 6.4） ----------
+     发布后由后端写入消息中心（source = system）。expires_at 过了
+     即失效，失效逻辑与消息的 expired 同口径：不再计入未读。         */
+  announcements: [
+    { id: 1, title: '学习资料库开放上传，欢迎共享课程笔记',
+      body: '学习资料库已开放上传入口。课件、笔记、习题都可以传，上传前请确认内容为本人整理或已获授权，涉及版权的资料会被下架。\n\n路径：学习资料库 → 选择课程 → 上传资料。',
+      published_at: '2026-11-16 10:00', expires_at: '2026-12-31 23:59', created_by: '张三' },
+    { id: 2, title: '第 12 周 AI 学习规划功能试用征集',
+      body: 'AI 学习规划进入试用阶段，欢迎在使用中通过个人中心反馈问题。本周日晚 22:00 前反馈的同学优先处理。',
+      published_at: '2026-11-10 09:00', expires_at: '2026-11-15 22:00', created_by: '张三' }
+  ],
+
+  /* ---------- 数据源同步状态（第一期只读，交接文档阶段 6.6） ----------
+     第一期不做接入配置界面，只有状态、失败原因和手动触发。
+     unified_auth 必须已接通：登录页的主入口就是它，这里若写「申请中」
+     两边就互相打脸。演示「申请中」的边界态改用 library_loan 这一条。   */
+  dataSources: [
+    { id: 'academic', name: '教务在线', scope: '课表 · 任务 · 学期校历',
+      status: 'connected', last_sync_at: '2026-11-18 06:00', last_ok_at: '2026-11-18 06:00',
+      last_error: null, schedule: '每天 06:00 自动同步', fail_streak: 0 },
+    { id: 'unified_auth', name: '统一身份认证', scope: '登录 · 学籍信息',
+      status: 'connected', last_sync_at: '2026-11-18 08:12', last_ok_at: '2026-11-18 08:12',
+      last_error: null, schedule: '每次登录时校验', fail_streak: 0 },
+    { id: 'library_loan', name: '图书馆借阅', scope: '借阅中书目 · 到期提醒',
+      status: 'not_configured', last_sync_at: null, last_ok_at: null,
+      last_error: null, schedule: '—', fail_streak: 0 }
+  ],
+
+  /* ---------- 系统配置（system_config 表，阶段 6.5） ----------
+     界面化只留全局运营口径：学期基准、资料上传限制。
+     提醒提前量、AI 估算是学生个人偏好（个人中心·学习偏好/通知与提醒）；
+     冲突检测是 Planner 安全硬约束，无开关；时段上限是算法常量。
+     部署级配置（JWT / CORS / 数据库 / 存储硬上限 / API Key）走环境变量。
+     term_start 与 config.js 的 APP_CONFIG.term.startDate 保持一致。  */
+  config: {
+    term_name: '2026-2027 学年 第一学期',
+    term_start: '2026-08-31',
+    upload: {
+      exts: ['pdf', 'docx', 'pptx', 'xlsx', 'zip', 'md', 'png', 'jpg'],
+      max_mb: 50
+    }
+  }
 };
 
 /* ============================================================
@@ -518,11 +584,77 @@ window.MOCK = {
       return this.unreadCount();
     },
 
+    /* 系统管理发布公告时走这里：公告即「系统提醒」来源，
+       发布后顶栏角标要立刻 +1。n 需要带全消息字段（title / summary /
+       body / target / extract / attachments），由调用方组装。 */
+    add: function (n) {
+      n.id = Date.now();
+      n.read = false;
+      n.expired = false;
+      M.notifications.unshift(n);
+      save(M.notifications.slice());
+      emit();
+      return n;
+    },
+
     reset: function () {
       try { sessionStorage.removeItem(NK); } catch (e) {}
       M.notifications = JSON.parse(JSON.stringify(INIT));
       emit();
       return M.notifications;
+    }
+  };
+})();
+
+/* ============================================================
+   系统管理的演示态存储 —— 用户 / 资料 / 公告 / 配置
+   套路与 EventStore 一致：页面拿副本改，commit() 写回 MOCK 并落
+   sessionStorage。资料状态必须落盘：资料库页和全局搜索都读
+   MOCK.resources，下架状态不同步过去就会出现「搜索能看到、
+   资料库看不到」的分裂。
+   ============================================================ */
+(function () {
+  var M = window.MOCK;
+  var KEYS = { users: 'uniflow.proto.admin.users.v1', courses: 'uniflow.proto.admin.courses.v1', resources: 'uniflow.proto.admin.res.v1', announcements: 'uniflow.proto.admin.ann.v1', config: 'uniflow.proto.admin.cfg.v2' };
+  var INIT = {
+    users: JSON.parse(JSON.stringify(M.users)),
+    courses: JSON.parse(JSON.stringify(M.courses)),
+    resources: JSON.parse(JSON.stringify(M.resources)),
+    announcements: JSON.parse(JSON.stringify(M.announcements)),
+    config: JSON.parse(JSON.stringify(M.config))
+  };
+
+  Object.keys(KEYS).forEach(function (k) {
+    try {
+      var raw = sessionStorage.getItem(KEYS[k]);
+      if (raw) {
+        var saved = JSON.parse(raw);
+        if (saved != null) M[k] = saved;
+      }
+    } catch (e) {}
+  });
+
+  window.AdminStore = {
+    users: function () { return JSON.parse(JSON.stringify(M.users)); },
+    courses: function () { return JSON.parse(JSON.stringify(M.courses)); },
+    resources: function () { return JSON.parse(JSON.stringify(M.resources)); },
+    announcements: function () { return JSON.parse(JSON.stringify(M.announcements)); },
+    config: function () { return JSON.parse(JSON.stringify(M.config)); },
+
+    commit: function (fields) {
+      Object.keys(fields).forEach(function (k) {
+        if (!KEYS[k]) return;
+        M[k] = fields[k];
+        try { sessionStorage.setItem(KEYS[k], JSON.stringify(fields[k])); } catch (e) {}
+      });
+    },
+
+    reset: function () {
+      Object.keys(KEYS).forEach(function (k) {
+        try { sessionStorage.removeItem(KEYS[k]); } catch (e) {}
+        M[k] = JSON.parse(JSON.stringify(INIT[k]));
+      });
+      return true;
     }
   };
 })();

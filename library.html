@@ -193,6 +193,10 @@
             <th>上传者</th>
             <td>{{ current.uploaded_by }}</td>
           </tr>
+          <tr v-if="current.origin || current.license">
+            <th>来源与授权</th>
+            <td>{{ [current.origin, current.license].filter(Boolean).join(' · ') }}</td>
+          </tr>
           <tr>
             <th>更新时间</th>
             <td>{{ current.updated_at }}</td>
@@ -247,7 +251,9 @@
      放在页面里搜索就看不到资料库了。接接口时整体换成
      GET /api/resources 的返回，其余代码不动。
      ============================================================ */
-  const RES = M.resources;
+  /* 已下架资料（系统管理里 status='off'）不进资料库，
+     下架状态由 AdminStore 落 sessionStorage，这里加载时已恢复 */
+  const RES = M.resources.filter(function (r) { return r.status !== 'off'; });
 
   /* 关键词匹配统一走全局搜索的口径：连续命中 + 简称（搜「高数」也能出
      「高等数学」）。不这么干，面板说「资料 5 条」、点进资料页却是 0 条。 */

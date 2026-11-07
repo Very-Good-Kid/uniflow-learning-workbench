@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>登录</title>
+<link rel="stylesheet" href="assets/vendor/tdesign.min.css" />
+<link rel="stylesheet" href="assets/css/app.css" />
+<style>
+  /* ================= 登录 =================
+     全站唯一不套 app-shell 的页面。
+     整页一张校园照片打底，登录卡居中；品牌名放卡上方，
+     学校和版本放页面最底部——卡里只留登录本身要用的东西。 */
+
+  .stage {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px 24px 26px;
+    background: #0E2A24 url("assets/images/campus-bg.jpg") center center / cover no-repeat;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* 蒙版：上下压深保住白色文字，中间留透，让照片还看得出是校园 */
+  .stage::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg,
+      rgba(0, 26, 22, .66) 0%,
+      rgba(0, 26, 22, .32) 30%,
+      rgba(0, 26, 22, .40) 58%,
+      rgba(0, 26, 22, .80) 100%);
+  }
+  .stage > * { position: relative; z-index: 1; }
+
+  /* ---------- 卡上方：品牌 ---------- */
+  .hero { text-align: center; margin-bottom: 26px; }
+
+  .hero-mark {
+    width: 46px; height: 46px; margin: 0 auto 13px;
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .28);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 21px; font-weight: 500; color: var(--brand-8);
+  }
+
+  .hero-name {
+    margin: 0; font-size: 22px; font-weight: 500; color: #fff;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, .38);
+  }
+
+  .hero-sub {
+    margin-top: 7px;
+    font-size: 10.5px; letter-spacing: 2.6px; text-transform: uppercase;
+    color: rgba(255,255,255,.6);
+  }
+
+  /* ---------- 登录卡 ---------- */
+  .card-login {
+    width: 430px; max-width: 100%;
+    background: var(--surface);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px -14px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .16);
+    padding: 26px 34px 22px;
+  }
+
+  /* 页签：账号登录 / 扫码登录 */
+  .tabs {
+    display: flex; gap: 28px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 22px;
+  }
+  .tab {
+    padding: 0 1px 12px;
+    font-size: 13.5px; color: var(--ink-3);
+    cursor: pointer; position: relative;
+    transition: color .16s;
+    user-select: none;
+  }
+  .tab:hover { color: var(--ink-1); }
+  .tab.on { color: var(--brand-7); font-weight: 500; }
+  .tab.on::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+    height: 2px; background: var(--brand-7); border-radius: 2px 2px 0 0;
+  }
+
+  /* 表单 */
+  .fld { margin-bottom: 15px; }
+  .fld-lb {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-size: 12px; color: var(--ink-2); margin-bottom: 6px;
+  }
+  .fld-lb a { color: var(--ink-3); text-decoration: none; }
+  .fld-lb a:hover { color: var(--brand-7); }
+
+  .btn-login { margin-top: 20px; }
+
+  .card-note {
+    margin-top: 14px;
+    font-size: 11px; line-height: 1.7; color: var(--ink-4);
+    text-align: center;
+  }
+
+  /* ---------- 扫码 ---------- */
+  .qr-box { text-align: center; padding: 2px 0; }
+  .qr-frame {
+    width: 168px; height: 168px; margin: 0 auto;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: #fff;
+  }
+  .qr-frame svg { display: block; width: 100%; height: 100%; }
+  .qr-tip { margin-top: 12px; font-size: 12.5px; color: var(--ink-2); }
+  .qr-sub { margin-top: 5px; font-size: 11.5px; color: var(--ink-4); line-height: 1.7; }
+  .qr-refresh {
+    margin-top: 9px; font-size: 11.5px; color: var(--brand-7);
+    cursor: pointer; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .qr-refresh:hover { text-decoration: underline; }
+
+  /* ---------- 错误条 ---------- */
+  .err-bar {
+    margin-top: 14px;
+    display: flex; gap: 8px; align-items: flex-start;
+    padding: 10px 12px 10px 11px;
+    border: 1px solid var(--red-line);
+    border-left: 3px solid var(--red);
+    border-radius: var(--r-sm);
+    background: var(--red-bg);
+    animation: errIn .2s ease-out;
+  }
+  @keyframes errIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .err-bar .ic { color: var(--red); margin-top: 1px; flex: 0 0 auto; }
+  .err-bar .tx { font-size: 12px; line-height: 1.65; color: var(--red); }
+  .err-bar .tx b { font-weight: 500; }
+  .err-bar .tx .sub { display: block; color: #8C3A34; margin-top: 2px; }
+
+  /* ---------- 演示入口 ---------- */
+  .demo-line {
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px dashed var(--line);
+    text-align: center;
+  }
+  .demo-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    border: 1px dashed var(--ink-4);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--ink-3); font-size: 12px; font-family: inherit;
+    cursor: pointer; transition: all .16s;
+  }
+  .demo-btn:hover { border-color: var(--brand-7); color: var(--brand-7); background: var(--brand-1); }
+
+  /* ---------- 页脚 ---------- */
+  .stage-foot {
+    margin-top: 22px;
+    text-align: center;
+    font-size: 11.5px; color: rgba(255,255,255,.7);
+    line-height: 1.9;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .55);
+  }
+  .stage-foot .sp { opacity: .45; margin: 0 7px; }
+
+  /* ---------- 跳转遮罩 ---------- */
+  .auth-mask {
+    position: fixed; inset: 0; z-index: 900;
+    display: flex; align-items: center; justify-content: center;
+    /* 不透明：真实流程是整页跳到认证中心，不是在本页盖一层 */
+    background-color: var(--brand-10);
+    background-image: radial-gradient(rgba(255,255,255,.05) .6px, transparent .6px);
+    background-size: 22px 22px;
+    animation: maskIn .18s ease-out;
+  }
+  @keyframes maskIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .am { width: 360px; text-align: center; color: #fff; }
+  .am-ic {
+    width: 46px; height: 46px; margin: 0 auto 16px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .am-t { font-size: 15px; font-weight: 500; }
+  .am-s { margin-top: 9px; font-size: 12px; color: rgba(255,255,255,.72); line-height: 1.7; }
+
+  /* ---------- 演示身份弹窗（居中，不用抽屉） ---------- */
+  .acc {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 13px;
+    border: 1px solid var(--line); border-radius: var(--r-md);
+    margin-bottom: 9px; cursor: pointer;
+    transition: all .15s; background: #fff;
+  }
+  .acc:hover { border-color: var(--brand-4); background: var(--brand-1); }
+  .acc.dis:hover { border-color: var(--red-line); background: var(--red-bg); }
+  .acc-av {
+    width: 34px; height: 34px; flex: 0 0 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500;
+    background: var(--brand-1); color: var(--brand-8);
+  }
+  .acc.dis .acc-av { background: #F2F3F4; color: var(--ink-3); }
+  .acc-main { flex: 1; min-width: 0; }
+  .acc-t { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-1); }
+  .acc-d { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; font-variant-numeric: tabular-nums; }
+  .acc-go { flex: 0 0 auto; display: flex; align-items: center; color: var(--brand-7); }
+  .acc.dis .acc-go { color: var(--ink-4); }
+  .dlg-lead { margin: 0 0 14px; font-size: 12.5px; line-height: 1.75; color: var(--ink-3); }
+  .dlg-note {
+    margin-top: 4px; padding: 9px 11px;
+    background: #F8FAF9; border: 1px solid var(--line-2); border-radius: 6px;
+    font-size: 11.5px; line-height: 1.75; color: var(--ink-3);
+  }
+
+  @media (max-height: 780px) {
+    .stage { padding-top: 24px; padding-bottom: 16px; }
+    .hero { margin-bottom: 18px; }
+    .hero-mark { width: 38px; height: 38px; margin-bottom: 10px; font-size: 17px; border-radius: 11px; }
+    .hero-name { font-size: 19px; }
+    .stage-foot { margin-top: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="stage">
+
+    <!-- ============ 品牌（卡上方） ============ -->
+    <div class="hero">
+      <div class="hero-mark">{{ brand.mark }}</div>
+      <h1 class="hero-name">{{ brand.name }}</h1>
+      <div class="hero-sub">{{ brand.sub }}</div>
+    </div>
+
+    <!-- ============ 登录卡 ============ -->
+    <div class="card-login">
+      <div class="tabs">
+        <div class="tab" :class="{ on: mode === 'pwd' }" @click="switchMode('pwd')">账号登录</div>
+        <div class="tab" :class="{ on: mode === 'qr' }" @click="switchMode('qr')">扫码登录</div>
+      </div>
+
+      <!-- 账号密码 -->
+      <template v-if="mode === 'pwd'">
+        <div class="fld">
+          <div class="fld-lb"><span>统一认证账号</span></div>
+          <t-input
+            v-model="form.acc"
+            size="large"
+            placeholder="请输入统一认证账号"
+            :maxlength="32"
+            clearable
+            @keyup.enter="doLogin">
+          </t-input>
+        </div>
+
+        <div class="fld">
+          <div class="fld-lb">
+            <span>密码</span>
+            <a href="#" @click.prevent="forgot">忘记密码？</a>
+          </div>
+          <t-input
+            v-model="form.pwd"
+            type="password"
+            size="large"
+            placeholder="请输入统一身份认证密码"
+            @keyup.enter="doLogin">
+          </t-input>
+        </div>
+
+        <t-button
+          class="btn-login"
+          theme="primary"
+          size="large"
+          block
+          :loading="state === 'authing'"
+          @click="doLogin">
+          {{ state === 'authing' ? '登录中…' : '登录' }}
+        </t-button>
+
+        <div class="card-note">
+          账号与密码由学校统一身份认证中心校验，本平台不保存密码
+        </div>
+      </template>
+
+      <!-- 扫码 -->
+      <template v-else>
+        <div class="qr-box">
+          <div class="qr-frame">
+            <svg viewBox="0 0 25 25" shape-rendering="crispEdges">
+              <rect width="25" height="25" fill="#fff"></rect>
+              <g fill="#191C1E">
+                <rect v-for="(c, i) in qrCells" :key="i" :x="c.x" :y="c.y" width="1" height="1"></rect>
+              </g>
+              <g fill="none" stroke="#191C1E" stroke-width="1">
+                <rect x="0.5" y="0.5" width="6" height="6"></rect>
+                <rect x="18.5" y="0.5" width="6" height="6"></rect>
+                <rect x="0.5" y="18.5" width="6" height="6"></rect>
+              </g>
+              <g fill="#191C1E">
+                <rect x="2" y="2" width="3" height="3"></rect>
+                <rect x="20" y="2" width="3" height="3"></rect>
+                <rect x="2" y="20" width="3" height="3"></rect>
+              </g>
+              <circle cx="12.5" cy="12.5" r="3.4" fill="#fff"></circle>
+              <circle cx="12.5" cy="12.5" r="2.2" fill="#006D5B"></circle>
+            </svg>
+          </div>
+          <div class="qr-tip">用手机扫码登录</div>
+          <div class="qr-sub">打开学校统一认证 App 或企业微信扫码</div>
+          <div class="qr-refresh" @click="refreshQR">
+            <app-icon name="arrow-right" :size="13"></app-icon>
+            <span>二维码 {{ qrLeft }} 秒后失效，点击刷新</span>
+          </div>
+        </div>
+      </template>
+
+      <!-- 错误 -->
+      <div class="err-bar" v-if="err">
+        <app-icon class="ic" name="warning" :size="15"></app-icon>
+        <div class="tx">
+          <b>{{ err.title }}</b>
+          <span class="sub">{{ err.sub }}</span>
+        </div>
+      </div>
+
+      <!-- 演示入口 -->
+      <div class="demo-line">
+        <button class="demo-btn" @click="demoOpen = true">
+          <app-icon name="user" :size="13"></app-icon>
+          <span>使用演示账号进入</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ============ 页脚 ============ -->
+    <div class="stage-foot">
+      {{ brand.school }}<span class="sp">·</span>{{ version }}
+      <br />
+      本系统仅用于校内教学，请勿在公共设备上保持登录
+    </div>
+  </div>
+
+  <!-- ============ 跳转遮罩 ============ -->
+  <div class="auth-mask" v-if="state === 'authing'">
+    <div class="am">
+      <div class="am-ic"></div>
+      <div class="am-t">{{ authing.text }}</div>
+      <div class="am-s">{{ authing.sub }}</div>
+    </div>
+  </div>
+
+  <!-- ============ 演示身份（居中弹窗） ============ -->
+  <t-dialog
+    v-model:visible="demoOpen"
+    header="选择演示身份"
+    :footer="false"
+    width="400px"
+    placement="center">
+    <p class="dlg-lead">
+      原型不走真实认证。选一个身份进来，不同身份看到的侧边栏不一样，停用账号用来验失败态。
+    </p>
+
+    <div
+      v-for="a in accounts"
+      :key="a.auth_account"
+      class="acc"
+      :class="{ dis: a.status === 'disabled' }"
+      @click="loginAs(a)">
+      <div class="acc-av">{{ a.name[0] }}</div>
+      <div class="acc-main">
+        <div class="acc-t">
+          <span>{{ a.name }}</span>
+          <span class="tag" :class="a.status === 'disabled' ? 'risk' : (a.role === 'admin' ? 'src' : '')">
+            {{ a.status === 'disabled' ? '已停用' : (a.role === 'admin' ? '管理员' : '学生') }}
+          </span>
+        </div>
+        <div class="acc-d">{{ a.auth_account }} · {{ a.major || a.college }}</div>
+      </div>
+      <span class="acc-go"><app-icon name="chev-right" :size="15"></app-icon></span>
+    </div>
+
+    <div class="dlg-note">
+      演示环境不校验密码，账号对上就能进。学生身份看不到「系统管理」；
+      管理员多这一项，用来验用户、课程、资料、公告。正式环境里这个入口不存在。
+    </div>
+  </t-dialog>
+</div>
+
+<script src="assets/vendor/vue.global.prod.js"></script>
+<script src="assets/vendor/tdesign.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/mock.js"></script>
+<script src="assets/js/shell.js"></script>
+<script>
+(function () {
+  var C = window.APP_CONFIG;
+
+  /* 会话：与 Store / EventStore 同一口径，sessionStorage，关标签页失效。
+     真实实现由认证中心回调换 JWT，这里只存「谁进来了」。 */
+  var SKEY = 'uniflow.proto.session';
+
+  window.LoginSession = {
+    get: function () {
+      try { return JSON.parse(sessionStorage.getItem(SKEY) || 'null'); }
+      catch (e) { return null; }
+    },
+    set: function (u) {
+      sessionStorage.setItem(SKEY, JSON.stringify({
+        student_id: u.student_id,
+        name: u.name,
+        role: u.role,
+        at: new Date().toISOString()
+      }));
+    },
+    clear: function () { sessionStorage.removeItem(SKEY); }
+  };
+
+  /* 伪二维码：25×25 网格，跳过三个定位角和中心，其余随机。
+     原型不引二维码库，画个能把「这里该有码」说清楚的示意图就够。 */
+  function makeCells() {
+    var N = 25, cells = [];
+    function inFinder(x, y) {
+      return (x < 8 && y < 8) || (x > N - 9 && y < 8) || (x < 8 && y > N - 9);
+    }
+    for (var y = 0; y < N; y++) {
+      for (var x = 0; x < N; x++) {
+        if (inFinder(x, y)) continue;
+        if (x > 9 && x < 15 && y > 9 && y < 15) continue;
+        if (Math.random() > .52) cells.push({ x: x, y: y });
+      }
+    }
+    return cells;
+  }
+
+  var app = mountApp({
+    data: function () {
+      return {
+        brand: C.brand,
+        version: C.version,
+        mode: 'pwd',              /* pwd | qr */
+        form: { acc: '', pwd: '' },
+        state: 'idle',            /* idle | authing */
+        authing: { text: '', sub: '' },
+        err: null,
+        demoOpen: false,
+        accounts: [],
+        qrCells: makeCells(),
+        qrLeft: 120,
+        _qrTimer: null
+      };
+    },
+
+    mounted: function () {
+      var users = (window.MOCK && window.MOCK.users) || [];
+      var pick = ['2026210001', '2026210002', '2026210003'];
+      this.accounts = pick.map(function (sid) {
+        return users.filter(function (u) { return u.student_id === sid; })[0];
+      }).filter(Boolean);
+
+      /* 退出必须先清会话再判跳转，否则会被人弹回首页 */
+      if (location.search.indexOf('logout=1') > -1) {
+        window.LoginSession.clear();
+      }
+      var s = window.LoginSession.get();
+      if (s && location.search.indexOf('stay=1') === -1) {
+        location.replace('home.html');
+      }
+
+      this.startQRCountdown();
+    },
+
+    beforeUnmount: function () {
+      if (this._qrTimer) clearInterval(this._qrTimer);
+    },
+
+    methods: {
+      switchMode: function (m) {
+        this.mode = m;
+        this.err = null;
+        if (m === 'qr') this.startQRCountdown();
+      },
+
+      startQRCountdown: function () {
+        var self = this;
+        if (this._qrTimer) clearInterval(this._qrTimer);
+        this.qrLeft = 120;
+        this._qrTimer = setInterval(function () {
+          self.qrLeft--;
+          if (self.qrLeft <= 0) {
+            clearInterval(self._qrTimer);
+            self._qrTimer = null;
+            self.qrLeft = 0;
+          }
+        }, 1000);
+      },
+
+      refreshQR: function () {
+        this.qrCells = makeCells();
+        this.startQRCountdown();
+      },
+
+      /* 账号密码：先做格式校验，再演「认证中心校验」的等待。
+         账号是统一身份认证下发的那串，不是学号；演示环境密码不校验，
+         只认账号在不在名单、是不是停用。 */
+      doLogin: function () {
+        if (this.state === 'authing') return;
+        this.err = null;
+
+        var acc = (this.form.acc || '').trim();
+        var pwd = (this.form.pwd || '').trim();
+
+        if (!acc) {
+          this.err = { title: '请输入统一认证账号', sub: '就是登录学校门户用的那个账号。' };
+          return;
+        }
+        if (!/^[a-zA-Z0-9._@-]{3,32}$/.test(acc)) {
+          this.err = { title: '账号格式不对', sub: '账号由字母、数字组成，可以用 . _ @ - 连接，长度 3–32 位。' };
+          return;
+        }
+        if (!pwd) {
+          this.err = { title: '请输入密码', sub: '这里是统一身份认证的登录密码，不是教务选课密码。' };
+          return;
+        }
+
+        var users = (window.MOCK && window.MOCK.users) || [];
+        var key = acc.toLowerCase();
+        var u = users.filter(function (x) {
+          return String(x.auth_account).toLowerCase() === key;
+        })[0];
+
+        if (!u) {
+          this.err = {
+            title: '账号或密码不正确',
+            sub: '连续输错 5 次账号会被锁定 30 分钟，可在学校门户自助解锁。'
+          };
+          return;
+        }
+        if (u.status === 'disabled') {
+          this.err = {
+            title: '账号已停用，无法登录',
+            sub: '你的账号已被管理员停用，数据仍然保留。请联系学院教务或平台管理员恢复。'
+          };
+          return;
+        }
+
+        this.runAuth(u, '正在校验统一身份认证');
+      },
+
+      loginAs: function (a) {
+        this.demoOpen = false;
+        this.err = null;
+
+        if (a.status === 'disabled') {
+          this.err = {
+            title: '账号已停用，无法登录',
+            sub: '你的账号已被管理员停用，数据仍然保留。请联系学院教务或平台管理员恢复。'
+          };
+          return;
+        }
+        this.runAuth(a, '正在验证账号「' + a.name + '」');
+      },
+
+      runAuth: function (u, text) {
+        this.authing = { text: text, sub: '演示环境，不跳转学校认证中心' };
+        this.state = 'authing';
+        setTimeout(function () {
+          window.LoginSession.set(u);
+          location.href = 'home.html';
+        }, 1000);
+      },
+
+      forgot: function () {
+        TDesign.MessagePlugin.info('原型演示：正式环境会跳转到学校统一身份认证的密码找回页');
+      }
+    }
+  });
+
+  /* 认证服务不可用的降级态，用 #down 触发。
+     不给按钮——它不该被当成一个正常操作。 */
+  if (location.hash === '#down') {
+    setTimeout(function () {
+      app.err = {
+        title: '统一身份认证暂时不可用',
+        sub: '学校认证中心没有响应，请稍后重试。长时间打不开请联系学校信息中心。'
+      };
+    }, 300);
+  }
+})();
+</script>
+</body>
+</html>

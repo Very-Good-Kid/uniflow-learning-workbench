@@ -38,16 +38,52 @@
     content: ''; position: absolute; left: 8px; right: 8px; bottom: -1px;
     height: 2px; background: var(--brand-7); border-radius: 2px;
   }
-  .adm-tab .soon {
-    font-size: 10px; font-weight: 400; color: var(--ink-4);
-    border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; line-height: 15px;
-  }
 
   .adm-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* 管理表格的行不是整行可点的，别沿用任务页的 pointer */
+  .adm-body table.tasks tbody tr { cursor: default; }
 
+  /* 左树 + 右表：用户按学院/专业，课程按课程名分组 */
+  .adm-split { display: flex; height: 100%; min-height: 0; }
+  .adm-tree {
+    flex: 0 0 208px; width: 208px; min-height: 0; overflow-y: auto;
+    border-right: 1px solid var(--line); background: #FAFBFC;
+    padding: 10px 8px;
+  }
+  .tnode {
+    display: flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 10px; border-radius: 6px;
+    font-size: 12.5px; color: var(--ink-2); cursor: pointer;
+    white-space: nowrap; overflow: hidden;
+  }
+  .tnode:hover { background: var(--line-2); color: var(--ink-1); }
+  .tnode.on { background: var(--brand-1); color: var(--brand-9); font-weight: 500; }
+  .tnode .lb { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .tnode .cnt {
+    margin-left: auto; font-size: 11px; color: var(--ink-4);
+    font-variant-numeric: tabular-nums;
+  }
+  .tnode.on .cnt { color: var(--brand-8); }
+  .tnode.lv2 { padding-left: 26px; }
+  .tnode.lv1 { font-weight: 500; color: var(--ink-1); }
+  .tnode.lv1.on { color: var(--brand-9); }
+  .tnode .fold {
+    display: flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; flex: 0 0 16px; margin-left: -3px;
+    color: var(--ink-4); border-radius: 4px;
+    transition: transform .15s;
+  }
+  .tnode .fold:hover { background: var(--line-2); color: var(--ink-1); }
+  .tnode .fold.closed { transform: rotate(-90deg); }
+  .adm-main {
+    flex: 1 1 auto; min-width: 0; min-height: 0;
+    overflow-y: auto; display: flex; flex-direction: column;
+  }
+
+  /* 配置与同步状态用的分节行 */
   .sec { border-bottom: 1px solid var(--line); }
   .sec:last-child { border-bottom: 0; }
-  .sec-hd { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px 0; }
+  .sec-hd { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px 0; }
   .sec-hd h3 { margin: 0; font-size: 13px; font-weight: 500; color: var(--ink-1); }
   .sec-hd .hint { font-size: 11.5px; color: var(--ink-3); }
   .sec-bd { padding: 11px 18px 14px; }
@@ -58,59 +94,49 @@
   }
   .row:last-child { border-bottom: 0; padding-bottom: 0; }
   .row:first-child { padding-top: 0; }
-  .row-lb { width: 84px; flex: 0 0 auto; font-size: 12.5px; color: var(--ink-2); }
-  .row-ct { flex: 1; min-width: 0; }
+  .row-lb { width: 150px; flex: 0 0 auto; font-size: 12.5px; color: var(--ink-2); }
+  .row-ct { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
   .row-hint { font-size: 11px; color: var(--ink-3); }
-  .row-t { font-size: 12.5px; color: var(--ink-1); }
-  .row-d { font-size: 11px; color: var(--ink-3); margin-top: 1px; }
-
-  .seg { display: flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
-  .seg button {
-    height: 28px; padding: 0 11px; border: 0; background: #fff; cursor: pointer;
-    font-size: 12px; color: var(--ink-2); font-family: inherit; border-right: 1px solid var(--line);
-  }
-  .seg button:last-child { border-right: 0; }
-  .seg button.on { background: var(--brand-1); color: var(--brand-9); font-weight: 500; }
 
   .ro-note {
-    margin-top: 12px; padding: 8px 11px; border-radius: 6px;
+    margin: 12px 18px; padding: 8px 11px; border-radius: 6px;
     background: #F8F9FA; border: 1px solid var(--line-2);
     font-size: 11.5px; color: var(--ink-3); line-height: 1.6;
   }
+  .ro-note b { color: var(--ink-2); font-weight: 500; }
 
-  /* 未交付分区的占位 */
-  .todo {
-    display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-    padding: 52px 24px 40px; text-align: center;
-  }
-  .todo-ico {
-    width: 42px; height: 42px; border-radius: 12px; margin-bottom: 14px;
-    background: var(--line-2); color: var(--ink-4);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .todo h4 { margin: 0 0 6px; font-size: 14px; font-weight: 500; color: var(--ink-1); }
-  .todo p { margin: 0; font-size: 12.5px; color: var(--ink-3); line-height: 1.75; max-width: 520px; }
-  .todo .todo-warn {
-    margin-top: 16px; padding: 9px 13px; border-radius: 7px;
-    background: var(--warm-bg); border: 1px solid #F3E2C6;
-    color: var(--warm-deep); font-size: 12px; line-height: 1.65; text-align: left;
+  .src-card { border-bottom: 1px solid var(--line); padding: 14px 18px; }
+  .src-card:last-child { border-bottom: 0; }
+  .src-hd { display: flex; align-items: center; gap: 10px; }
+  .src-hd b { font-size: 13.5px; font-weight: 500; color: var(--ink-1); }
+  .src-hd .scope { font-size: 11.5px; color: var(--ink-3); }
+  .src-meta { margin: 9px 0 0; font-size: 12px; color: var(--ink-2); line-height: 1.9; }
+  .src-meta em { font-style: normal; color: var(--ink-3); margin-right: 4px; }
+
+  .op-cell { display: flex; align-items: center; gap: 2px; justify-content: flex-end; }
+
+  .ann-title { font-size: 13px; color: var(--ink-1); line-height: 1.4; }
+  .ann-sub {
+    font-size: 11px; color: var(--ink-3); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 430px;
   }
 </style>
 </head>
 <body>
 
+<!-- 注意：in-DOM 模板里自定义标签必须显式闭合，不能写成 <app-icon /> -->
 <div id="app">
   <app-shell active="admin">
 
     <div class="page-head">
       <div>
         <h1>系统管理</h1>
-        <p>面向工作室管理人员的后台，和「个人中心」不是一回事：那边配学生自己的偏好，这边管全校的资料与接入</p>
+        <p>{{ headLine }}</p>
       </div>
       <div class="ph-right">
         <span class="role-tag">
           <app-icon name="lock" :size="13"></app-icon>
-          当前身份：管理员
+          当前身份：管理员 · {{ selfName }}
         </span>
       </div>
     </div>
@@ -121,47 +147,647 @@
         <div v-for="t in tabs" :key="t.k" class="adm-tab" :class="{ on: tab === t.k }" @click="tab = t.k">
           <app-icon :name="t.icon" :size="15"></app-icon>
           <span>{{ t.t }}</span>
-          <span class="soon" v-if="!t.ready">待交付</span>
         </div>
       </div>
 
       <div class="adm-body">
 
-        <!-- ============ 资料管理（待交付） ============ -->
-        <div v-if="tab === 'res'" class="todo">
-          <div class="todo-ico"><app-icon name="book" :size="20"></app-icon></div>
-          <h4>资料管理 · 待交付</h4>
-          <p>
-            上传、分类、下架、删除学习资料。学习资料库页是学生看的读端，这里是写端，共用同一份资料表和分类。
-          </p>
-          <div class="todo-warn">
-            文档自己在风险表里提过：资料可能存在版权与授权问题，第一阶段由管理员统一上传、明确来源与使用范围。所以上传表单不能只做「选文件 + 起名字」，至少要带来源和授权范围两个字段，而且要在学生端的资料详情里可见。
-          </div>
-        </div>
+        <!-- ============ 用户管理 ============ -->
+        <template v-if="tab === 'users'">
+          <div class="adm-split">
+            <aside class="adm-tree">
+              <div class="tnode" :class="{ on: uSel === 'all' }" @click="uSel = 'all'">
+                <span class="lb">全部用户</span><span class="cnt">{{ users.length }}</span>
+              </div>
+              <template v-for="g in uTree" :key="g.college">
+                <div class="tnode lv1" :class="{ on: uSel === 'c:' + g.college }"
+                     @click="uSel = 'c:' + g.college; uFold[g.college] = false">
+                  <span class="fold" :class="{ closed: uFold[g.college] }"
+                        title="折叠 / 展开" @click.stop="uFold[g.college] = !uFold[g.college]">
+                    <app-icon name="chev-down" :size="12"></app-icon>
+                  </span>
+                  <span class="lb">{{ g.college }}</span><span class="cnt">{{ g.count }}</span>
+                </div>
+                <div v-for="m in g.majors" v-show="!uFold[g.college]" :key="m.major" class="tnode lv2"
+                     :class="{ on: uSel === 'm:' + g.college + '|' + m.major }"
+                     @click="uSel = 'm:' + g.college + '|' + m.major">
+                  <span class="lb">{{ m.major }}</span><span class="cnt">{{ m.count }}</span>
+                </div>
+              </template>
+            </aside>
 
-        <!-- ============ 课程目录（待交付） ============ -->
-        <div v-if="tab === 'course'" class="todo">
-          <div class="todo-ico"><app-icon name="cap" :size="20"></app-icon></div>
-          <h4>课程目录 · 待交付</h4>
-          <p>
-            课程本身由教务同步进来，这里只做三件事：给课程补别名、看每门课有多少份资料、把不再开的课归档。不需要「新增课程」——学生的课是教务给的，不是管理员编的。
-          </p>
-        </div>
+            <div class="adm-main">
+              <div class="summary">
+                <div class="sum-cell">
+                  <div class="sum-ico teal"><app-icon name="user" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">全部账号</div>
+                    <div class="sum-val">{{ uStat.all }}<em>个</em></div>
+                    <div class="sum-sub">来自选课名单与手动添加</div>
+                  </div>
+                </div>
+                <div class="sum-cell">
+                  <div class="sum-ico navy"><app-icon name="lock" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">管理员</div>
+                    <div class="sum-val">{{ uStat.admins }}<em>人</em></div>
+                    <div class="sum-sub">种子账号初始化，可在下方调整</div>
+                  </div>
+                </div>
+                <div class="sum-cell">
+                  <div class="sum-ico orange"><app-icon name="x" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">已停用</div>
+                    <div class="sum-val">{{ uStat.disabled }}<em>个</em></div>
+                    <div class="sum-sub">停用后无法登录，数据保留</div>
+                  </div>
+                </div>
+                <div class="sum-cell">
+                  <div class="sum-ico gold"><app-icon name="check" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">近 7 天活跃</div>
+                    <div class="sum-val">{{ uStat.weekly }}<em>人</em></div>
+                    <div class="sum-sub">按最近一次登录时间算</div>
+                  </div>
+                </div>
+              </div>
 
-        <!-- ============ 平台接入（待交付） ============ -->
-        <div v-if="tab === 'source'" class="todo">
-          <div class="todo-ico"><app-icon name="lock" :size="20"></app-icon></div>
-          <h4>平台接入 · 待交付</h4>
-          <p>
-            教务接口的连接状态、上次同步时间、手动同步按钮、最近几次失败记录。单校单接口，配一次用四年，做成「状态页 + 一个按钮」就够，不需要适配器市场。
-          </p>
-          <div class="todo-warn">
-            这一块能不能做，取决于学校信息中心给不给接口。没批下来之前，课表和作业靠手动创建与文件导入，功能不能停摆。
+              <div class="toolbar">
+                <div class="tb-line">
+                  <t-input v-model="uq" placeholder="搜索姓名、学号或学院" clearable style="width:200px">
+                    <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
+                  </t-input>
+                  <t-radio-group v-model="uRole" variant="default-filled">
+                    <t-radio-button value="all">全部角色</t-radio-button>
+                    <t-radio-button value="admin">管理员</t-radio-button>
+                    <t-radio-button value="student">学生</t-radio-button>
+                  </t-radio-group>
+                  <span class="sp"></span>
+                  <t-select v-model="uStatus" :options="userStatusOptions" style="width:112px"></t-select>
+                  <span class="tb-count">筛出 <b>{{ uFiltered.length }}</b> / {{ users.length }} 个账号</span>
+                </div>
+              </div>
+
+              <table class="tasks">
+                <colgroup>
+                  <col style="width:112px" />
+                  <col />
+                  <col style="width:80px" />
+                  <col style="width:76px" />
+                  <col style="width:128px" />
+                  <col style="width:170px" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>学号</th>
+                    <th>姓名</th>
+                    <th>角色</th>
+                    <th>状态</th>
+                    <th>最近登录</th>
+                    <th style="text-align:right">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="u in uFiltered" :key="u.id">
+                    <td style="font-variant-numeric:tabular-nums">{{ u.student_id }}</td>
+                    <td>
+                      <div class="t-cell">
+                        <div style="min-width:0">
+                          <div class="t-title">{{ u.name }}<span v-if="u.id === selfId" class="tag none" style="margin-left:6px">当前登录</span></div>
+                          <div class="t-sub">{{ u.college }} · {{ u.major }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="tag" :class="u.role === 'admin' ? 'doing' : 'src'">{{ u.role === 'admin' ? '管理员' : '学生' }}</span>
+                    </td>
+                    <td>
+                      <span class="tag" :class="u.status === 'active' ? 'done' : 'cancel'">{{ u.status === 'active' ? '正常' : '已停用' }}</span>
+                    </td>
+                    <td class="due">{{ u.last_login_at }}<em v-if="u.status === 'disabled'">停用前记录</em></td>
+                    <td>
+                      <div class="op-cell">
+                        <t-button size="small" variant="text" @click="setRole(u)">{{ u.role === 'admin' ? '设为学生' : '设为管理员' }}</t-button>
+                        <t-button size="small" variant="text" :theme="u.status === 'active' ? 'danger' : 'primary'" @click="toggleUserStatus(u)">
+                          {{ u.status === 'active' ? '停用' : '启用' }}
+                        </t-button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="empty" v-if="!uFiltered.length">
+                <div class="em-ico"><app-icon name="search" :size="24"></app-icon></div>
+                <p>当前范围下没有符合条件的账号。</p>
+                <div class="em-act"><t-button variant="outline" size="small" @click="resetUserFilter">清空筛选</t-button></div>
+              </div>
+            </div>
           </div>
-        </div>
+        </template>
+
+        <!-- ============ 课程目录 ============ -->
+        <template v-if="tab === 'course'">
+          <div class="adm-split">
+            <aside class="adm-tree">
+              <div class="tnode" :class="{ on: cSel === 'all' }" @click="cSel = 'all'">
+                <span class="lb">全部课程</span><span class="cnt">{{ courses.length }}</span>
+              </div>
+              <div v-for="n in cTree" :key="n.name" class="tnode lv1"
+                   :class="{ on: cSel === n.name }" @click="cSel = n.name">
+                <span class="lb">{{ n.name }}</span>
+                <span class="cnt">{{ n.slots }} 条</span>
+              </div>
+            </aside>
+
+            <div class="adm-main">
+              <div class="ro-note" style="margin:14px 18px 0">
+                <b>数据来源口径：</b>第一期课程由管理员在这里手动维护；教务同步接通后以同步数据为准，手动维护做兜底。
+                课程被任务和资料引用，所以不提供删除，停开的课把周次范围改短即可。
+                左侧按课程分组，一门课有多条排课记录（比如高数每周两次）时收在同一个节点下。
+              </div>
+
+              <div class="toolbar">
+                <div class="tb-line">
+                  <t-input v-model="cq" placeholder="搜索课程、教师或教室" clearable style="width:200px">
+                    <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
+                  </t-input>
+                  <span class="sp"></span>
+                  <span class="tb-count">共 <b>{{ courses.length }}</b> 条排课记录</span>
+                  <t-button theme="primary" @click="openCourseNew">
+                    <app-icon name="plus" :size="16" style="margin-right:4px"></app-icon>新增课程
+                  </t-button>
+                </div>
+              </div>
+
+              <table class="tasks">
+                <colgroup>
+                  <col />
+                  <col style="width:88px" />
+                  <col style="width:100px" />
+                  <col style="width:146px" />
+                  <col style="width:92px" />
+                  <col style="width:64px" />
+                  <col style="width:82px" />
+                  <col style="width:66px" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>课程</th>
+                    <th>教师</th>
+                    <th>教室</th>
+                    <th>时间</th>
+                    <th>周次</th>
+                    <th>学分</th>
+                    <th>在架资料</th>
+                    <th style="text-align:right">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in cFiltered" :key="c.id">
+                    <td><div class="t-title">{{ c.name }}</div></td>
+                    <td>{{ c.teacher }}</td>
+                    <td>{{ c.classroom }}</td>
+                    <td class="due">{{ weekText(c.weekday) }} {{ c.start_time }}–{{ c.end_time }}</td>
+                    <td class="due">{{ c.start_week }}–{{ c.end_week }} 周</td>
+                    <td>{{ c.credit }}</td>
+                    <td>{{ resCountOf(c.id) }} 份</td>
+                    <td>
+                      <div class="op-cell">
+                        <t-button size="small" variant="text" @click="openCourseEdit(c)">编辑</t-button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="empty" v-if="!cFiltered.length">
+                <div class="em-ico"><app-icon name="search" :size="24"></app-icon></div>
+                <p>当前范围下没有匹配的课程。</p>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ============ 资料管理 ============ -->
+        <template v-if="tab === 'res'">
+          <div class="adm-split">
+            <aside class="adm-tree">
+              <div class="tnode" :class="{ on: rSel === 'all' }" @click="rSel = 'all'">
+                <span class="lb">全部资料</span><span class="cnt">{{ resources.length }}</span>
+              </div>
+              <template v-for="g in rTree" :key="g.course">
+                <div class="tnode lv1" :class="{ on: rSel === 'c:' + g.course }"
+                     @click="rSel = 'c:' + g.course; rFold[g.course] = false">
+                  <span class="fold" :class="{ closed: rFold[g.course] }"
+                        title="折叠 / 展开" @click.stop="rFold[g.course] = !rFold[g.course]">
+                    <app-icon name="chev-down" :size="12"></app-icon>
+                  </span>
+                  <span class="lb">{{ g.course }}</span><span class="cnt">{{ g.count }}</span>
+                </div>
+                <div v-for="cat in g.cats" v-show="!rFold[g.course]" :key="cat.name" class="tnode lv2"
+                     :class="{ on: rSel === 'cat:' + g.course + '|' + cat.name }"
+                     @click="rSel = 'cat:' + g.course + '|' + cat.name">
+                  <span class="lb">{{ cat.name }}</span><span class="cnt">{{ cat.count }}</span>
+                </div>
+              </template>
+            </aside>
+
+            <div class="adm-main">
+              <div class="summary">
+                <div class="sum-cell">
+                  <div class="sum-ico teal"><app-icon name="book" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">资料总数</div>
+                    <div class="sum-val">{{ rStat.all }}<em>份</em></div>
+                    <div class="sum-sub">含已下架，全量口径</div>
+                  </div>
+                </div>
+                <div class="sum-cell">
+                  <div class="sum-ico navy"><app-icon name="check" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">在架</div>
+                    <div class="sum-val">{{ rStat.active }}<em>份</em></div>
+                    <div class="sum-sub">学生端与搜索只显示这部分</div>
+                  </div>
+                </div>
+                <div class="sum-cell">
+                  <div class="sum-ico orange"><app-icon name="x" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">已下架</div>
+                    <div class="sum-val">{{ rStat.off }}<em>份</em></div>
+                    <div class="sum-sub">可恢复，删除不可恢复</div>
+                  </div>
+                </div>
+                <div class="sum-cell">
+                  <div class="sum-ico gold"><app-icon name="file" :size="18"></app-icon></div>
+                  <div class="sum-body">
+                    <div class="sum-label">存储占用</div>
+                    <div class="sum-val">{{ rStat.sizeText }}</div>
+                    <div class="sum-sub">单文件上限 {{ cfg.upload.max_mb }} MB（系统配置里调）</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="toolbar">
+                <div class="tb-line">
+                  <t-input v-model="rq" placeholder="搜索资料名或上传者" clearable style="width:220px">
+                    <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
+                  </t-input>
+                  <t-select v-model="rStatus" :options="resStatusOptions" style="width:118px"></t-select>
+                  <span class="sp"></span>
+                  <span class="tb-count">筛出 <b>{{ rFiltered.length }}</b> / {{ resources.length }} 份</span>
+                  <t-button theme="primary" @click="openResUpload">
+                    <app-icon name="plus" :size="16" style="margin-right:4px"></app-icon>上传资料
+                  </t-button>
+                </div>
+              </div>
+
+              <table class="tasks">
+                <colgroup>
+                  <col />
+                  <col style="width:108px" />
+                  <col style="width:66px" />
+                  <col style="width:84px" />
+                  <col style="width:88px" />
+                  <col style="width:74px" />
+                  <col style="width:80px" />
+                  <col style="width:150px" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>资料</th>
+                    <th>课程</th>
+                    <th>分类</th>
+                    <th>大小</th>
+                    <th>上传者</th>
+                    <th>下载</th>
+                    <th>状态</th>
+                    <th style="text-align:right">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="r in rFiltered" :key="r.id" :class="{ 'row-done': r.status === 'off' }">
+                    <td>
+                      <div class="t-cell">
+                        <span class="tag src">{{ r.ext.toUpperCase() }}</span>
+                        <div style="min-width:0">
+                          <div class="t-title">{{ r.title }}</div>
+                          <div class="t-sub" v-if="r.status === 'off'">下架原因：{{ r.off_reason || '未填写' }}</div>
+                          <div class="t-sub" v-else-if="r.origin || r.license">{{ [r.origin, r.license].filter(Boolean).join(' · ') }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ r.course_name }}</td>
+                    <td>{{ r.category }}</td>
+                    <td class="due">{{ sizeText(r.size) }}</td>
+                    <td>{{ r.uploaded_by }}</td>
+                    <td class="due">{{ r.download_count }}</td>
+                    <td>
+                      <span class="tag" :class="r.status === 'off' ? 'pending' : 'done'">{{ r.status === 'off' ? '已下架' : '在架' }}</span>
+                    </td>
+                    <td>
+                      <div class="op-cell">
+                        <t-button size="small" variant="text" @click="toggleRes(r)">{{ r.status === 'off' ? '恢复' : '下架' }}</t-button>
+                        <t-button size="small" variant="text" theme="danger" @click="removeRes(r)">
+                          {{ rDelId === r.id ? '再点确认' : '删除' }}
+                        </t-button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="empty" v-if="!rFiltered.length">
+                <div class="em-ico"><app-icon name="search" :size="24"></app-icon></div>
+                <p>当前范围下没有符合条件的资料。</p>
+                <div class="em-act"><t-button variant="outline" size="small" @click="resetResFilter">清空筛选</t-button></div>
+              </div>
+
+              <div class="ro-note">
+                <b>分工：</b>资料的上传与治理全部在系统管理完成，学生端「学习资料库」只保留浏览、搜索、下载、收藏，
+                两处共用同一套资料 API。上传必须带来源与授权范围，会展示在学生端的资料详情里。
+                下架立即从学生端资料库与顶栏搜索里消失，恢复后回到原位。
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ============ 公告发布 ============ -->
+        <template v-if="tab === 'ann'">
+          <div class="toolbar">
+            <div class="tb-line">
+              <span class="tb-count">生效中 <b>{{ annActiveCount }}</b> 条 / 共 {{ announcements.length }} 条</span>
+              <span class="sp"></span>
+              <t-button theme="primary" @click="openAnnNew">
+                <app-icon name="plus" :size="16" style="margin-right:4px"></app-icon>发布公告
+              </t-button>
+            </div>
+          </div>
+
+          <table class="tasks">
+            <colgroup>
+              <col />
+              <col style="width:140px" />
+              <col style="width:120px" />
+              <col style="width:86px" />
+              <col style="width:70px" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>公告</th>
+                <th>发布时间</th>
+                <th>有效期至</th>
+                <th>状态</th>
+                <th style="text-align:right">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in announcements" :key="a.id" :class="{ 'row-done': !annActive(a) }">
+                <td>
+                  <div class="ann-title">{{ a.title }}</div>
+                  <div class="ann-sub">{{ a.body }}</div>
+                </td>
+                <td class="due">{{ a.published_at }}</td>
+                <td class="due">{{ a.expires_at }}</td>
+                <td>
+                  <span class="tag" :class="annActive(a) ? 'done' : 'cancel'">{{ annActive(a) ? '生效中' : '已到期' }}</span>
+                </td>
+                <td>
+                  <div class="op-cell">
+                    <t-button size="small" variant="text" v-if="annActive(a)" @click="revokeAnn(a)">撤回</t-button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="empty" v-if="!announcements.length">
+            <div class="em-ico"><app-icon name="bell" :size="24"></app-icon></div>
+            <p>还没有发过公告。公告就是学生端「系统提醒」的来源，发一条试试。</p>
+            <div class="em-act"><t-button theme="primary" size="small" @click="openAnnNew">发布公告</t-button></div>
+          </div>
+
+          <div class="ro-note">
+            <b>公告 ≠ 站内信：</b>公告发布后立刻出现在全体学生的消息中心（来源「系统公告」），顶栏未读角标同步 +1，
+            到期自动失效、不再计未读。撤回只对之后生效，已经送达的消息保留。
+          </div>
+        </template>
+
+        <!-- ============ 系统配置 ============ -->
+        <template v-if="tab === 'config'">
+          <div class="sec">
+            <div class="sec-hd">
+              <h3>学期与周次</h3>
+              <span class="hint">全站周次从这里算，改错一周全站跟着错</span>
+            </div>
+            <div class="sec-bd">
+              <div class="row">
+                <div class="row-lb">学期名称</div>
+                <div class="row-ct">
+                  <t-select v-model="cfg.term_name" :options="termOptions" style="width:240px"></t-select>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-lb">第 1 周周一</div>
+                <div class="row-ct">
+                  <t-date-picker v-model="cfg.term_start" format="YYYY-MM-DD" value-type="YYYY-MM-DD" style="width:170px" clearable></t-date-picker>
+                  <span class="row-hint">{{ termWeekHint }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec">
+            <div class="sec-hd">
+              <h3>资料上传</h3>
+              <span class="hint">业务层放行口径，跟着资料库运营调</span>
+            </div>
+            <div class="sec-bd">
+              <div class="row">
+                <div class="row-lb">允许的格式</div>
+                <div class="row-ct">
+                  <t-select v-model="cfg.upload.exts" :options="extOptions" multiple :min-collapsed-num="6" style="width:380px"></t-select>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-lb">单文件大小上限</div>
+                <div class="row-ct">
+                  <t-input-number v-model="cfg.upload.max_mb" :min="1" :max="500" theme="normal" style="width:110px"></t-input-number>
+                  <span class="row-hint">MB。存储层硬上限在环境变量里，这里是给学生放行的口径</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sec-bd" style="display:flex;align-items:center;gap:12px">
+            <t-button theme="primary" @click="saveConfig">保存配置</t-button>
+            <span class="row-hint">保存后立即生效，改动写入操作日志（admin_log）</span>
+          </div>
+
+          <div class="ro-note" style="margin-bottom:16px">
+            <b>以下配置不做界面，走环境变量：</b>JWT 密钥、CORS 白名单、数据库连接、文件存储路径与硬上限、LLM API Key。<br>
+            <b>不归管理端管的：</b>任务提醒提前量、AI 估算是学生个人偏好，在学生端「个人中心」设置，每个人自己定；
+            冲突检测是 AI 规划的安全硬约束，不提供关闭开关；每次生成的时段上限与单个时长上限是产品算法参数，走常量。
+            另外，学期与周次基准后续接通教务同步后可由课表数据自动预填，但停课、调课会让推断出错，预填值必须经管理员确认才生效。
+          </div>
+        </template>
+
+        <!-- ============ 同步状态 ============ -->
+        <template v-if="tab === 'sync'">
+          <div v-for="d in dataSources" :key="d.id" class="src-card">
+            <div class="src-hd">
+              <b>{{ d.name }}</b>
+              <span class="scope">{{ d.scope }}</span>
+              <span class="tag" :class="srcCls(d.status)">{{ srcText(d.status) }}</span>
+              <span class="sp" style="flex:1"></span>
+              <t-button size="small" variant="outline" :disabled="d.status === 'not_configured'" :loading="syncingId === d.id" @click="manualSync(d)">
+                手动同步
+              </t-button>
+            </div>
+            <div class="src-meta">
+              <div><em>上次同步</em>{{ d.last_sync_at || '从未同步' }}</div>
+              <div><em>同步计划</em>{{ d.schedule }}</div>
+              <div v-if="d.last_error"><em>失败原因</em><span style="color:var(--red)">{{ d.last_error }}</span></div>
+            </div>
+          </div>
+
+          <div class="ro-note" style="margin-bottom:16px">
+            <b>第一期只做状态页，不做接入配置界面。</b>能不能接上取决于学校信息中心给不给接口；
+            没批下来之前，课表和任务靠手动创建与文件导入兜底，功能不停摆。同步失败自动重试的策略见交接文档阶段 6。
+          </div>
+        </template>
 
       </div>
     </div>
+
+    <!-- ================= 新增 / 编辑课程 ================= -->
+    <t-dialog v-model:visible="courseFormVisible" width="560px" :footer="false"
+              :header="courseMode === 'new' ? '新增课程' : '编辑课程 · ' + courseDraft.name">
+
+      <div class="dlg-form">
+        <div class="fg full">
+          <label>课程名称</label>
+          <t-input v-model="courseDraft.name" placeholder="例如：高等数学"></t-input>
+        </div>
+        <div class="fg">
+          <label>任课教师</label>
+          <t-input v-model="courseDraft.teacher"></t-input>
+        </div>
+        <div class="fg">
+          <label>上课地点</label>
+          <t-input v-model="courseDraft.classroom" placeholder="例如：教1-201"></t-input>
+        </div>
+        <div class="fg">
+          <label>星期</label>
+          <t-select v-model="courseDraft.weekday" :options="weekdayOptions"></t-select>
+        </div>
+        <div class="fg">
+          <label>学分</label>
+          <t-input-number v-model="courseDraft.credit" :min="0.5" :max="10" :step="0.5" theme="normal" style="width:100%"></t-input-number>
+        </div>
+        <div class="fg">
+          <label>开始时间</label>
+          <t-time-picker v-model="courseDraft.start_time" format="HH:mm" value-type="HH:mm" style="width:100%"></t-time-picker>
+        </div>
+        <div class="fg">
+          <label>结束时间</label>
+          <t-time-picker v-model="courseDraft.end_time" format="HH:mm" value-type="HH:mm" style="width:100%"></t-time-picker>
+        </div>
+        <div class="fg">
+          <label>开始周</label>
+          <t-input-number v-model="courseDraft.start_week" :min="1" :max="25" theme="normal" style="width:100%"></t-input-number>
+        </div>
+        <div class="fg">
+          <label>结束周</label>
+          <t-input-number v-model="courseDraft.end_week" :min="1" :max="25" theme="normal" style="width:100%"></t-input-number>
+        </div>
+
+        <div class="form-tip full">
+          保存后全站生效：日程页的周视图、首页今日安排、任务关联课程都会立刻用到新数据。
+        </div>
+
+        <div class="dlg-acts full">
+          <t-button variant="outline" @click="courseFormVisible = false">取消</t-button>
+          <t-button theme="primary" @click="saveCourse">保存</t-button>
+        </div>
+      </div>
+    </t-dialog>
+
+    <!-- ================= 上传资料 ================= -->
+    <t-dialog v-model:visible="resFormVisible" width="560px" :footer="false" header="上传资料">
+
+      <div class="dlg-form">
+        <div class="fg full">
+          <label>资料名称</label>
+          <t-input v-model="resDraft.title" placeholder="例如：第六章 定积分应用 课件"></t-input>
+        </div>
+        <div class="fg">
+          <label>所属课程</label>
+          <t-select v-model="resDraft.course_name" :options="resCoursePickOptions" placeholder="选课程"></t-select>
+        </div>
+        <div class="fg">
+          <label>分类</label>
+          <t-select v-model="resDraft.category" :options="categoryOptions"></t-select>
+        </div>
+        <div class="fg">
+          <label>文件格式</label>
+          <t-select v-model="resDraft.ext" :options="extPickOptions"></t-select>
+        </div>
+        <div class="fg">
+          <label>来源</label>
+          <t-select v-model="resDraft.origin" :options="originOptions"></t-select>
+        </div>
+        <div class="fg full">
+          <label>授权范围</label>
+          <t-radio-group v-model="resDraft.license" variant="default-filled" style="width:100%">
+            <t-radio-button value="仅本校学习使用">仅本校学习使用</t-radio-button>
+            <t-radio-button value="允许校内分享">允许校内分享</t-radio-button>
+          </t-radio-group>
+        </div>
+
+        <div class="form-tip full">
+          来源与授权范围必填，会展示在学生端的资料详情里：资料库涉及版权风险，网络收集的内容尤其要说清出处，
+          说不清的一律不上传。真实环境这里选文件后先过格式与大小校验（口径在「系统配置」里调）。
+        </div>
+
+        <div class="dlg-acts full">
+          <t-button variant="outline" @click="resFormVisible = false">取消</t-button>
+          <t-button theme="primary" @click="saveResUpload">上传并上架</t-button>
+        </div>
+      </div>
+    </t-dialog>
+
+    <!-- ================= 发布公告 ================= -->
+    <t-dialog v-model:visible="annFormVisible" width="560px" :footer="false" header="发布公告">
+
+      <div class="dlg-form">
+        <div class="fg full">
+          <label>标题</label>
+          <t-input v-model="annDraft.title" placeholder="一句话说清这件事"></t-input>
+        </div>
+        <div class="fg full">
+          <label>正文</label>
+          <t-textarea v-model="annDraft.body" placeholder="写清楚时间、地点、要学生做什么"
+                      :autosize="{ minRows: 4, maxRows: 8 }"></t-textarea>
+        </div>
+        <div class="fg full">
+          <label>有效期至</label>
+          <t-date-picker v-model="annDraft.expires" format="YYYY-MM-DD" value-type="YYYY-MM-DD"
+                         style="width:100%" clearable></t-date-picker>
+          <span class="hint">到期后自动从学生端失效，不再计未读</span>
+        </div>
+
+        <div class="form-tip full">
+          发布后立即进入全体学生的消息中心（来源「系统公告」），顶栏未读角标同步 +1。公告面向所有人，不要写只和个别学生有关的内容。
+        </div>
+
+        <div class="dlg-acts full">
+          <t-button variant="outline" @click="annFormVisible = false">取消</t-button>
+          <t-button theme="primary" @click="publishAnn">发布</t-button>
+        </div>
+      </div>
+    </t-dialog>
 
   </app-shell>
 </div>
@@ -174,25 +800,587 @@
 <script src="assets/js/search.js"></script>
 <script>
 (function () {
-  var C = window.APP_CONFIG;
+  const C = window.APP_CONFIG;
+  const M = window.MOCK;
+  const U = window.AppUtil;
+
+  function kwHit(text, kw) {
+    const S = window.AppSearch;
+    if (S && S.hit) return S.hit(text, kw);
+    return String(text == null ? '' : text).toLowerCase().indexOf(kw) >= 0;
+  }
+
+  function nowStamp() {
+    const d = new Date();
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+
+  function sizeText(kb) {
+    if (kb >= 1024 * 1024) return (kb / 1024 / 1024).toFixed(1) + ' GB';
+    if (kb >= 1024) return (kb / 1024).toFixed(1) + ' MB';
+    return kb + ' KB';
+  }
+
+  const EXT_ALL = ['pdf', 'docx', 'pptx', 'xlsx', 'zip', 'md', 'png', 'jpg', 'mp4', 'txt'];
 
   mountApp({
-    data: function () {
+    data() {
       return {
         tabs: [
-          { k: 'res',    t: '资料管理', icon: 'book', ready: false },
-          { k: 'course', t: '课程目录', icon: 'cap',  ready: false },
-          { k: 'source', t: '平台接入', icon: 'lock', ready: false }
+          { k: 'users',  t: '用户管理', icon: 'user' },
+          { k: 'course', t: '课程目录', icon: 'cap' },
+          { k: 'res',    t: '资料管理', icon: 'book' },
+          { k: 'ann',    t: '公告发布', icon: 'bell' },
+          { k: 'config', t: '系统配置', icon: 'setting' },
+          { k: 'sync',   t: '同步状态', icon: 'clock' }
         ],
-        tab: 'res',
+        tab: 'users',
 
+        selfId: 1,
+        selfName: '',
+
+        /* ---- 用户 ---- */
+        users: AdminStore.users(),
+        uq: '', uRole: 'all', uStatus: 'all',
+        uSel: 'all',
+        uFold: {},
+
+        /* ---- 课程 ---- */
+        courses: AdminStore.courses(),
+        cq: '',
+        cSel: 'all',
+        courseFormVisible: false,
+        courseMode: 'new',
+        courseDraft: {},
+
+        /* ---- 资料 ---- */
+        resources: AdminStore.resources(),
+        rq: '', rStatus: 'all',
+        rSel: 'all',
+        rFold: {},
+        rDelId: null,
+        resFormVisible: false,
+        resDraft: {},
+
+        /* ---- 公告 ---- */
+        announcements: AdminStore.announcements(),
+        annFormVisible: false,
+        annDraft: { title: '', body: '', expires: '' },
+
+        /* ---- 配置 ---- */
+        cfg: AdminStore.config(),
+
+        /* ---- 同步 ---- */
+        dataSources: JSON.parse(JSON.stringify(M.dataSources)),
+        syncingId: null
       };
     },
-    methods: {
-      toast: function (t, theme) {
-        var fn = { warning: TDesign.MessagePlugin.warning }[theme] || TDesign.MessagePlugin.success;
-        fn(t);
+
+    computed: {
+      headLine() {
+        const activeRes = this.resources.filter(function (r) { return r.status !== 'off'; }).length;
+        const totalKb = this.resources.reduce(function (n, r) { return n + (r.size || 0); }, 0);
+        return this.users.length + ' 个账号 · ' + this.courses.length + ' 条排课 · 资料在架 ' + activeRes +
+          ' 份（' + sizeText(totalKb) + '）· 公告生效中 ' + this.annActiveCount + ' 条';
+      },
+
+      /* ---- 用户 ---- */
+      uStat() {
+        const today = M.today;
+        return {
+          all: this.users.length,
+          admins: this.users.filter(function (u) { return u.role === 'admin' && u.status === 'active'; }).length,
+          disabled: this.users.filter(function (u) { return u.status === 'disabled'; }).length,
+          weekly: this.users.filter(function (u) {
+            if (!u.last_login_at) return false;
+            const d = U.dayDiff(String(u.last_login_at).slice(0, 10), today);
+            return d !== null && d >= 0 && d <= 6;
+          }).length
+        };
+      },
+
+      uFiltered() {
+        const kw = this.uq.trim().toLowerCase();
+        const role = this.uRole, st = this.uStatus, sel = this.uSel;
+        let college = null, major = null;
+        if (sel.indexOf('c:') === 0) college = sel.slice(2);
+        if (sel.indexOf('m:') === 0) {
+          const p = sel.slice(2).split('|');
+          college = p[0];
+          major = p[1];
+        }
+        return this.users.filter(function (u) {
+          if (college !== null && u.college !== college) return false;
+          if (major !== null && u.major !== major) return false;
+          if (role !== 'all' && u.role !== role) return false;
+          if (st !== 'all' && u.status !== st) return false;
+          if (kw && !(kwHit(u.name, kw) || kwHit(u.student_id, kw) || kwHit(u.college, kw) || kwHit(u.major, kw))) return false;
+          return true;
+        });
+      },
+
+      /* 学院 → 专业 两级树，计数实时算 */
+      uTree() {
+        const order = [];
+        const map = {};
+        this.users.forEach(function (u) {
+          if (!map[u.college]) {
+            map[u.college] = { college: u.college, count: 0, majors: {} };
+            order.push(u.college);
+          }
+          map[u.college].count += 1;
+          if (!map[u.college].majors[u.major]) map[u.college].majors[u.major] = { major: u.major, count: 0 };
+          map[u.college].majors[u.major].count += 1;
+        });
+        return order.map(function (c) {
+          return {
+            college: c,
+            count: map[c].count,
+            majors: Object.keys(map[c].majors).map(function (k) { return map[c].majors[k]; })
+          };
+        });
+      },
+
+      userStatusOptions() {
+        return [
+          { label: '全部状态', value: 'all' },
+          { label: '正常', value: 'active' },
+          { label: '已停用', value: 'disabled' }
+        ];
+      },
+
+      /* ---- 课程 ---- */
+      cFiltered() {
+        const kw = this.cq.trim().toLowerCase();
+        const sel = this.cSel;
+        return this.courses.filter(function (c) {
+          if (sel !== 'all' && c.name !== sel) return false;
+          if (kw && !(kwHit(c.name, kw) || kwHit(c.teacher, kw) || kwHit(c.classroom, kw))) return false;
+          return true;
+        });
+      },
+
+      /* 课程 → 排课记录 一级树，节点带排课数 */
+      cTree() {
+        const order = [];
+        const map = {};
+        this.courses.forEach(function (c) {
+          if (!map[c.name]) {
+            map[c.name] = { name: c.name, slots: 0 };
+            order.push(c.name);
+          }
+          map[c.name].slots += 1;
+        });
+        return order.map(function (n) { return map[n]; });
+      },
+
+      weekdayOptions() {
+        return U.DOW.map(function (d, i) { return { label: '周' + d, value: i === 6 ? 0 : i + 1 }; });
+      },
+
+      /* ---- 资料 ---- */
+      rStat() {
+        const totalKb = this.resources.reduce(function (n, r) { return n + (r.size || 0); }, 0);
+        return {
+          all: this.resources.length,
+          active: this.resources.filter(function (r) { return r.status !== 'off'; }).length,
+          off: this.resources.filter(function (r) { return r.status === 'off'; }).length,
+          sizeText: sizeText(totalKb)
+        };
+      },
+
+      rFiltered() {
+        const kw = this.rq.trim().toLowerCase();
+        const st = this.rStatus, sel = this.rSel;
+        let course = null, category = null;
+        if (sel.indexOf('c:') === 0) course = sel.slice(2);
+        if (sel.indexOf('cat:') === 0) {
+          const p = sel.slice(4).split('|');
+          course = p[0];
+          category = p[1];
+        }
+        return this.resources.filter(function (r) {
+          if (course !== null && r.course_name !== course) return false;
+          if (category !== null && r.category !== category) return false;
+          if (st !== 'all' && (r.status || 'active') !== st) return false;
+          if (kw && !(kwHit(r.title, kw) || kwHit(r.uploaded_by, kw))) return false;
+          return true;
+        });
+      },
+
+      /* 课程 → 分类 两级树，计数实时算（含已下架，全量口径） */
+      rTree() {
+        const order = [];
+        const map = {};
+        this.resources.forEach(function (r) {
+          if (!map[r.course_name]) {
+            map[r.course_name] = { course: r.course_name, count: 0, cats: {} };
+            order.push(r.course_name);
+          }
+          map[r.course_name].count += 1;
+          if (!map[r.course_name].cats[r.category]) map[r.course_name].cats[r.category] = { name: r.category, count: 0 };
+          map[r.course_name].cats[r.category].count += 1;
+        });
+        return order.map(function (c) {
+          return {
+            course: c,
+            count: map[c].count,
+            cats: Object.keys(map[c].cats).map(function (k) { return map[c].cats[k]; })
+          };
+        });
+      },
+
+      resStatusOptions() {
+        return [
+          { label: '全部状态', value: 'all' },
+          { label: '正常在架', value: 'active' },
+          { label: '已下架', value: 'off' }
+        ];
+      },
+
+      resCoursePickOptions() {
+        const seen = {};
+        const out = [];
+        this.courses.forEach(function (c) {
+          if (seen[c.name]) return;
+          seen[c.name] = 1;
+          out.push({ label: c.name, value: c.name });
+        });
+        return out;
+      },
+
+      categoryOptions() {
+        return ['课件', '笔记', '习题', '复习'].map(function (c) { return { label: c, value: c }; });
+      },
+
+      extPickOptions() {
+        return ['pdf', 'docx', 'pptx', 'xlsx', 'zip', 'md', 'png'].map(function (e) {
+          return { label: e.toUpperCase(), value: e };
+        });
+      },
+
+      originOptions() {
+        return ['原创整理', '教师提供', '网络收集'].map(function (o) { return { label: o, value: o }; });
+      },
+
+      /* ---- 公告 ---- */
+      annActiveCount() {
+        return this.announcements.filter(function (a) { return String(a.expires_at) >= M.today + ' 23:59'; }).length;
+      },
+
+      /* ---- 配置 ---- */
+      termOptions() { return C.termOptions; },
+
+      extOptions() {
+        return EXT_ALL.map(function (e) { return { label: e.toUpperCase(), value: e }; });
+      },
+
+      termWeekHint() {
+        if (!this.cfg.term_start) return '还没设第 1 周基准，全站周次算不出来';
+        const diff = U.dayDiff(this.cfg.term_start, M.today);
+        if (diff === null || diff < 0) return '基准日期在今天之后，当前还不在学期内';
+        const week = Math.floor(diff / 7) + 1;
+        return '按这个基准，' + M.today + ' 是第 ' + week + ' 周（今天演示口径）';
       }
+    },
+
+    methods: {
+      toast(t, theme) {
+        const fn = theme === 'warning' ? TDesign.MessagePlugin.warning
+          : theme === 'info' ? TDesign.MessagePlugin.info
+          : TDesign.MessagePlugin.success;
+        fn(t);
+      },
+
+      weekText(w) { return '周' + (U.DOW[w] || ''); },
+      sizeText,
+
+      /* ---- 用户 ---- */
+      resetUserFilter() { this.uq = ''; this.uRole = 'all'; this.uStatus = 'all'; },
+
+      activeAdmins() {
+        return this.users.filter(function (u) { return u.role === 'admin' && u.status === 'active'; });
+      },
+
+      setRole(u) {
+        const next = u.role === 'admin' ? 'student' : 'admin';
+        if (u.id === this.selfId) {
+          this.toast('不能修改自己的角色', 'warning');
+          return;
+        }
+        if (u.role === 'admin' && next === 'student' && this.activeAdmins().length <= 1) {
+          this.toast('至少保留一名管理员，先把别人提为管理员再操作', 'warning');
+          return;
+        }
+        u.role = next;
+        this.commitUsers();
+        this.toast('已把 ' + u.name + (next === 'admin' ? ' 提为管理员' : ' 改回学生'));
+      },
+
+      toggleUserStatus(u) {
+        if (u.status === 'active') {
+          if (u.id === this.selfId) {
+            this.toast('不能停用当前登录的账号', 'warning');
+            return;
+          }
+          if (u.role === 'admin' && this.activeAdmins().length <= 1) {
+            this.toast(u.name + ' 是最后一名管理员，停用会把后台锁死', 'warning');
+            return;
+          }
+          u.status = 'disabled';
+          this.commitUsers();
+          this.toast('已停用 ' + u.name + '，该账号无法登录，数据保留');
+        } else {
+          u.status = 'active';
+          this.commitUsers();
+          this.toast('已启用 ' + u.name);
+        }
+      },
+
+      commitUsers() {
+        AdminStore.commit({ users: JSON.parse(JSON.stringify(this.users)) });
+      },
+
+      /* ---- 课程 ---- */
+      openCourseNew() {
+        this.courseMode = 'new';
+        this.courseDraft = {
+          name: '', teacher: '', classroom: '', weekday: 1,
+          start_time: '08:00', end_time: '09:40', start_week: 1, end_week: 16, credit: 1
+        };
+        this.courseFormVisible = true;
+      },
+
+      openCourseEdit(c) {
+        this.courseMode = 'edit';
+        this.courseDraft = JSON.parse(JSON.stringify(c));
+        this.courseFormVisible = true;
+      },
+
+      saveCourse() {
+        const d = this.courseDraft;
+        if (!d.name || !d.name.trim()) {
+          this.toast('先填课程名称', 'warning');
+          return;
+        }
+        if (U.hm(d.end_time) <= U.hm(d.start_time)) {
+          this.toast('结束时间要晚于开始时间', 'warning');
+          return;
+        }
+        if (Number(d.end_week) < Number(d.start_week)) {
+          this.toast('结束周不能早于开始周', 'warning');
+          return;
+        }
+
+        if (this.courseMode === 'new') {
+          d.id = Date.now();
+          this.courses.push(d);
+          this.cSel = d.name;
+          this.toast('已新增课程：' + d.name);
+        } else {
+          const i = this.courses.findIndex(function (c) { return c.id === d.id; });
+          if (i >= 0) this.courses.splice(i, 1, JSON.parse(JSON.stringify(d)));
+          /* 改了名的课程，树选中态要跟上 */
+          if (this.cSel !== 'all' && !this.courses.some(function (c) { return c.name === this.cSel; }, this)) {
+            this.cSel = d.name;
+          }
+          this.toast('已保存修改：' + d.name);
+        }
+        AdminStore.commit({ courses: JSON.parse(JSON.stringify(this.courses)) });
+        this.courseFormVisible = false;
+      },
+
+      resCountOf(courseId) {
+        return this.resources.filter(function (r) {
+          return r.course_id === courseId && r.status !== 'off';
+        }).length;
+      },
+
+      /* ---- 资料 ---- */
+      resetResFilter() { this.rq = ''; this.rStatus = 'all'; },
+
+      toggleRes(r) {
+        if (r.status === 'off') {
+          delete r.status;
+          delete r.off_reason;
+          this.commitRes();
+          this.toast('已恢复上架：' + r.title);
+        } else {
+          r.status = 'off';
+          r.off_reason = '管理员下架';
+          this.commitRes();
+          this.toast('已下架：' + r.title + '（学生端与搜索立即不可见）', 'warning');
+        }
+      },
+
+      removeRes(r) {
+        if (this.rDelId !== r.id) {
+          this.rDelId = r.id;
+          this.toast('再点一次「删除」确认，删掉不能恢复', 'warning');
+          return;
+        }
+        this.resources = this.resources.filter(function (x) { return x.id !== r.id; });
+        this.rDelId = null;
+        this.commitRes();
+        this.toast('已删除：' + r.title);
+      },
+
+      commitRes() {
+        AdminStore.commit({ resources: JSON.parse(JSON.stringify(this.resources)) });
+      },
+
+      /* ---- 资料上传（管理员统一入口） ---- */
+      openResUpload() {
+        this.resDraft = {
+          title: '', course_name: '', category: '课件', ext: 'pdf',
+          origin: '原创整理', license: '仅本校学习使用'
+        };
+        this.resFormVisible = true;
+      },
+
+      saveResUpload() {
+        const d = this.resDraft;
+        if (!d.title || !d.title.trim()) {
+          this.toast('先给资料起个名字', 'warning');
+          return;
+        }
+        if (!d.course_name) {
+          this.toast('资料要挂到课程下，学生端按课程组织', 'warning');
+          return;
+        }
+        const course = this.courses.find(function (c) { return c.name === d.course_name; });
+
+        this.resources.unshift({
+          id: Date.now(),
+          title: d.title.trim(),
+          course_id: course ? course.id : null,
+          course_name: d.course_name,
+          category: d.category,
+          ext: d.ext,
+          size: Math.floor(Math.random() * 6000) + 120,
+          updated_at: M.today,
+          uploaded_by: this.selfName || '管理员',
+          download_count: 0,
+          cover_h: 84,
+          origin: d.origin,
+          license: d.license,
+          description: ''
+        });
+        this.commitRes();
+        this.resFormVisible = false;
+        /* 新上传的资料挂到对应课程节点下，自动选中并展开，方便确认 */
+        this.rSel = 'c:' + d.course_name;
+        this.rFold[d.course_name] = false;
+        this.toast('已上传并在架：' + d.title.trim() + '，学生端资料库立即可见');
+      },
+
+      /* ---- 公告 ---- */
+      annActive(a) {
+        return String(a.expires_at) >= M.today + ' 23:59';
+      },
+
+      openAnnNew() {
+        this.annDraft = { title: '', body: '', expires: U.addDays(M.today, 30) };
+        this.annFormVisible = true;
+      },
+
+      publishAnn() {
+        const d = this.annDraft;
+        if (!d.title || !d.title.trim()) {
+          this.toast('先写标题', 'warning');
+          return;
+        }
+        if (!d.body || !d.body.trim()) {
+          this.toast('正文不能为空，学生要靠它知道该做什么', 'warning');
+          return;
+        }
+
+        const ann = {
+          id: Date.now(),
+          title: d.title.trim(),
+          body: d.body.trim(),
+          published_at: nowStamp(),
+          expires_at: (d.expires || U.addDays(M.today, 30)) + ' 23:59',
+          created_by: this.selfName || '管理员'
+        };
+        this.announcements.unshift(ann);
+        AdminStore.commit({ announcements: JSON.parse(JSON.stringify(this.announcements)) });
+
+        /* 公告即「系统提醒」来源：写入消息中心，顶栏角标 +1 */
+        if (window.NotifyStore) {
+          NotifyStore.add({
+            source: 'system', source_name: '系统公告', type: 'notice',
+            title: ann.title,
+            summary: ann.body.length > 42 ? ann.body.slice(0, 42) + '…' : ann.body,
+            body: ann.body,
+            created_at: ann.published_at,
+            course_id: null, course_name: '',
+            target: { kind: 'none', object_id: null, label: '', sub: '' },
+            extract: null, attachments: []
+          });
+        }
+
+        this.annFormVisible = false;
+        this.toast('已发布，学生端消息中心可见');
+      },
+
+      revokeAnn(a) {
+        a.expires_at = nowStamp();
+        AdminStore.commit({ announcements: JSON.parse(JSON.stringify(this.announcements)) });
+        this.toast('已撤回，学生端不再展示；已送达的消息保留', 'warning');
+      },
+
+      /* ---- 配置 ---- */
+      saveConfig() {
+        AdminStore.commit({ config: JSON.parse(JSON.stringify(this.cfg)) });
+        this.toast('配置已保存，全站即时生效');
+      },
+
+      /* ---- 同步 ---- */
+      srcCls(s) {
+        if (s === 'connected') return 'done';
+        if (s === 'error') return 'risk';
+        return 'none';
+      },
+      srcText(s) {
+        if (s === 'connected') return '已连接';
+        if (s === 'error') return '同步失败';
+        return '未接入';
+      },
+
+      manualSync(d) {
+        if (d.status === 'not_configured') {
+          this.toast(d.name + '还没批下来，批下来之前走手动创建与文件导入', 'info');
+          return;
+        }
+        const self = this;
+        this.syncingId = d.id;
+        /* 接口位：POST /api/admin/sync/:source/run，真实实现由后端排队执行 */
+        setTimeout(function () {
+          d.last_sync_at = nowStamp();
+          d.last_ok_at = d.last_sync_at;
+          self.syncingId = null;
+          self.toast(d.name + ' 同步完成，本次无新增变更');
+        }, 900);
+      }
+    },
+
+    mounted() {
+      document.title = '系统管理 · ' + C.brand.name;
+
+      /* 当前登录人按演示账号的学号对上，别把「自己」写死成 id */
+      const me = this.users.find(function (u) { return u.student_id === C.demoUser.studentId; });
+      if (me) {
+        this.selfId = me.id;
+        this.selfName = me.name;
+      }
+
+      const qs = new URLSearchParams(location.search);
+      const t = qs.get('tab');
+      if (t && this.tabs.some(function (x) { return x.k === t; })) this.tab = t;
+      if (location.search) history.replaceState(null, '', location.pathname);
     }
   });
 })();

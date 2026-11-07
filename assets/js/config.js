@@ -11,7 +11,9 @@ window.APP_CONFIG = {
     name: '高校智能学习平台',
     sub: 'LEARNING WORKBENCH',
     // 侧边栏方块标记里的字，两个字以内
-    mark: '学'
+    mark: '学',
+    // 登录页品牌区页脚，改学校名也只动这一行
+    school: '重庆邮电大学'
   },
 
   version: 'v0.9 · 原型',
@@ -51,6 +53,8 @@ window.APP_CONFIG = {
     /* 顶栏只显示脱敏学号：教室投影、宿舍共用电脑上不该裸奔 */
     studentId: '2026210001',
     studentIdMasked: '2026****01',
+    /* 登录用的是这个，不是学号。真实值由统一身份认证下发 */
+    authAccount: 'zhangsan',
     nickname: '小张',
     college: '计算机科学与技术学院',
     major: '计算机科学与技术'

@@ -172,7 +172,9 @@
 
           <!-- 底部操作条 -->
           <div class="msg-read-ft">
-            <t-button size="small" variant="text" :disabled="current.expired" @click="toggleRead">
+            <t-button size="small" variant="text" :disabled="current.expired"
+                      :title="current.read ? '标回未读，留在这一条' : '标为已读后自动跳到下一条未读'"
+                      @click="toggleRead">
               {{ current.read ? '标为未读' : '标为已读' }}
             </t-button>
 
@@ -195,8 +197,17 @@
         </template>
 
         <div class="mr-empty" v-else>
-          <msg-icon name="inbox" :size="30" style="color:var(--ink-4)"></msg-icon>
-          <div>左边选一条消息看看。</div>
+          <!-- 未读清空是「处理完了」，不是「没东西可看」。
+               标已读自动跳走之后会落到这个状态，文案得跟着变 -->
+          <template v-if="allReadDone">
+            <app-icon name="check" :size="30" style="color:var(--brand-7)"></app-icon>
+            <div>未读都处理完了。</div>
+            <div style="font-size:11.5px;color:var(--ink-4)">切回「全部消息」还能回看这些通知</div>
+          </template>
+          <template v-else>
+            <msg-icon name="inbox" :size="30" style="color:var(--ink-4)"></msg-icon>
+            <div>左边选一条消息看看。</div>
+          </template>
         </div>
 
       </div>
@@ -419,11 +430,27 @@
           .slice(0, 3);
       },
 
+      /* 未读筛选下一条不剩，右栏也没硬留着某条消息 */
+      allReadDone() {
+        return this.tab === 'unread' && !this.shown.length && !this.current;
+      },
+
       prevId() {
         return this.neighbor(-1);
       },
       nextId() {
         return this.neighbor(1);
+      }
+    },
+
+    watch: {
+      /* 换消息时把阅读区滚回顶部。不这么做，上一条读到了底部，
+         自动跳到下一条时打开的就是半截正文 */
+      currentId() {
+        this.$nextTick(function () {
+          const bd = document.querySelector('.msg-read-bd');
+          if (bd) bd.scrollTop = 0;
+        });
       }
     },
 
@@ -455,16 +482,48 @@
         if (id) this.currentId = id;
       },
 
+      /* 「下一条未读」按当前列表顺序（时间倒序）往后找，后面没有了就
+         退回前面最近的一条。只在当前筛选结果里找：跳到一条左边根本
+         没显示的消息上，会让人以为消息是凭空冒出来的。 */
+      nextUnreadId(curId) {
+        const list = this.shown.filter(function (m) { return !m.read && !m.expired; });
+        const idx = list.findIndex(function (m) { return m.id === curId; });
+        const next = list[idx + 1] || list[idx - 1];
+        return next ? next.id : null;
+      },
+
       /* 点开不自动标已读：未读代表「还没处理完」，一句公告也可能只是路过看一眼。
-         要让未读真正清零，得自己点一下。 */
+         真点了「标为已读」＝这条处理完了，就自动落到下一条未读，
+         连着清一屏未读时不用每标一条都回左边点一下。 */
       toggleRead() {
-        if (!this.current) return;
-        this.write(this.current.id, { read: !this.current.read });
+        const cur = this.current;
+        if (!cur) return;
+
+        /* 标回未读是「这条还得再看」，原地留着，别把人推走 */
+        if (cur.read) {
+          this.write(cur.id, { read: false });
+          return;
+        }
+
+        /* 必须在 write 之前算：写完之后这条就从「未读」里消失了，
+           它在列表里的位置也跟着没了 */
+        const nextId = this.nextUnreadId(cur.id);
+        this.write(cur.id, { read: true });
+
+        if (nextId) {
+          this.currentId = nextId;
+        } else if (!this.shown.some(function (m) { return m.id === cur.id; })) {
+          /* 未读筛选下这条已经不在左边了，右栏别留一条列表里没有的消息 */
+          this.currentId = null;
+        }
+        if (!this.unreadCount) TDesign.MessagePlugin.success('未读都处理完了');
       },
 
       markAll() {
         const left = window.NotifyStore.markAllRead();
         this.sync();
+        /* 批量标完，未读筛选下左边就空了，右栏跟着收掉 */
+        if (this.tab === 'unread' && !this.shown.length) this.currentId = null;
         TDesign.MessagePlugin.success(left ? '还剩 ' + left + ' 条未读' : '全部标为已读了');
       },
 

@@ -20,10 +20,39 @@
   .sec-hd .hint { font-size: 11.5px; color: var(--ink-3); }
   .sec-bd { padding: 11px 18px 13px; }
 
-  /* 只读信息 */
-  .kv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 18px; }
-  .kv-i .k { font-size: 11.5px; color: var(--ink-3); margin-bottom: 3px; }
-  .kv-i .v { font-size: 13px; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  /* 学籍卡：身份主键做主角，学籍信息退到第二行 */
+  .idcard {
+    position: relative;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;
+    padding: 12px 16px 12px 18px;
+    border: 1px solid var(--brand-2); border-radius: 10px;
+    background: linear-gradient(100deg, var(--brand-1) 0%, #FFFFFF 62%);
+    overflow: hidden;
+  }
+  .idcard::before {
+    content: ''; position: absolute; left: 0; top: 10px; bottom: 10px;
+    width: 3px; border-radius: 0 2px 2px 0; background: var(--brand-7);
+  }
+  .idc-main { min-width: 0; }
+  .idc-line1 { display: flex; align-items: baseline; gap: 12px; }
+  .idc-name {
+    font-size: 18px; font-weight: 500; color: var(--ink-1); letter-spacing: .5px;
+  }
+  .idc-sid {
+    font-size: 12.5px; color: var(--ink-2);
+    font-variant-numeric: tabular-nums; letter-spacing: .6px;
+  }
+  .idc-line2 {
+    margin-top: 7px; font-size: 12px; color: var(--ink-3);
+    display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  }
+  .idc-sep { color: var(--brand-4); }
+  .idc-badge {
+    flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px;
+    height: 22px; padding: 0 9px; border-radius: 4px;
+    border: 1px solid var(--brand-4); background: #fff; color: var(--brand-8);
+    font-size: 11px;
+  }
   .ro-note {
     margin-top: 12px; padding: 8px 11px; border-radius: 6px;
     background: #F8F9FA; border: 1px solid var(--line-2);
@@ -158,7 +187,7 @@
     <div class="page-head">
       <div>
         <h1>个人中心</h1>
-        <p>账号信息与学习设置。登录走教务统一身份认证，密码不经过本系统</p>
+        <p>账号信息与学习设置。登录走学校统一身份认证，密码由认证中心校验，本平台不保存</p>
       </div>
       <div class="ph-right">
         <t-button variant="outline" @click="logout">退出登录</t-button>
@@ -171,16 +200,29 @@
       <div class="sec">
         <div class="sec-hd">
           <h3>身份信息</h3>
-          <span class="hint">只读 · 同步自教务 · 要改走教务处</span>
+          <span class="hint">只读 · 要改走教务处</span>
         </div>
         <div class="sec-bd">
-          <div class="kv">
-            <div class="kv-i"><div class="k">姓名</div><div class="v">{{ user.name }}</div></div>
-            <div class="kv-i"><div class="k">学号</div><div class="v">{{ user.studentId }}</div></div>
-            <div class="kv-i"><div class="k">年级</div><div class="v">2026 级</div></div>
-            <div class="kv-i"><div class="k">学院</div><div class="v">{{ user.college }}</div></div>
-            <div class="kv-i"><div class="k">专业</div><div class="v">{{ user.major }}</div></div>
-            <div class="kv-i"><div class="k">培养层次</div><div class="v">本科</div></div>
+          <div class="idcard">
+            <div class="idc-main">
+              <div class="idc-line1">
+                <span class="idc-name">{{ user.name }}</span>
+                <span class="idc-sid">{{ user.studentId }}</span>
+              </div>
+              <div class="idc-line2">
+                <span>{{ user.college }}</span>
+                <span class="idc-sep">/</span>
+                <span>{{ user.major }}</span>
+                <span class="idc-sep">·</span>
+                <span>2026 级</span>
+                <span class="idc-sep">·</span>
+                <span>本科</span>
+              </div>
+            </div>
+            <span class="idc-badge">
+              <app-icon name="check" :size="12"></app-icon>
+              教务已认证
+            </span>
           </div>
         </div>
       </div>
@@ -220,11 +262,11 @@
         </div>
         <div class="sec-bd">
           <div class="row">
-            <div class="row-lb">教务账号</div>
+            <div class="row-lb">认证账号</div>
             <div class="row-ct">
-              <div class="ss-line"><span class="dot"></span>已接通 · 学号 {{ user.studentIdMasked }}</div>
+              <div class="ss-line"><span class="dot"></span>已接通 · {{ user.authAccount }}</div>
             </div>
-            <div class="row-hint">上次登录 11/18 08:12</div>
+            <div class="row-hint">上次登录 11/18 16:32</div>
           </div>
           <div class="row">
             <div class="row-lb">数据同步</div>
@@ -349,6 +391,13 @@
                         :class="{ on: buffer === o.v }" @click="buffer = o.v">{{ o.t }}</button>
               </div>
               <div class="row-hint">不喜欢卡点交就往前留</div>
+            </div>
+            <div class="row">
+              <div class="row-lb">AI 估算耗时</div>
+              <div class="row-ct" style="display:flex;align-items:center;gap:10px">
+                <t-switch v-model="aiEst" size="small"></t-switch>
+                <span class="row-hint">新建任务时默认给出 AI 预估，不想要可关，手填的为准</span>
+              </div>
             </div>
             <div class="row">
               <div class="row-lb">这段别排</div>
@@ -555,6 +604,7 @@
         capOpts: [{ v: 60, t: '1 小时' }, { v: 120, t: '2 小时' }, { v: 180, t: '3 小时' }, { v: 240, t: '4 小时' }],
         buffer: 0,
         bufOpts: [{ v: 0, t: '当天' }, { v: 1, t: '提前 1 天' }, { v: 2, t: '提前 2 天' }],
+        aiEst: true,
 
         exceptions: [],
         exVisible: false,
@@ -776,7 +826,12 @@
         var fn = { warning: TDesign.MessagePlugin.warning, success: TDesign.MessagePlugin.success }[theme] || TDesign.MessagePlugin.success;
         fn(t);
       },
-      logout: function () { this.toast('登录页在下一批交付'); },
+      logout: function () {
+        /* 会话键与 login.html 的 LoginSession 同一个，清完再跳，
+           否则登录页的「已登录自动跳首页」会把人又弹回来 */
+        sessionStorage.removeItem('uniflow.proto.session');
+        location.href = 'login.html?logout=1';
+      },
       logoutAll: function () { this.toast('已退出全部设备'); }
     }
   });

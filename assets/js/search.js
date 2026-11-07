@@ -22,7 +22,11 @@
 
   /* ---------- 取数 ---------- */
   function tasks()     { return window.Store ? window.Store.tasks() : []; }
-  function resources() { return M.resources || []; }
+  function resources() {
+    /* 已下架的资料（系统管理里 status='off'）不进搜索，
+       否则面板能搜到、资料库却看不到 */
+    return (M.resources || []).filter(function (r) { return r.status !== 'off'; });
+  }
   function events()    { return window.EventStore ? window.EventStore.events() : []; }
   function courses()   { return M.courses || []; }
   function notes()     { return window.NotifyStore ? window.NotifyStore.list() : []; }
