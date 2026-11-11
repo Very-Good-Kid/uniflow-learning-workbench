@@ -14,7 +14,7 @@
   <app-shell active="tasks">
 
     <!-- ================= 页头 ================= -->
-    <div class="page-head">
+    <div class="page-head tk-page-head">
       <div>
         <h1>课程与任务</h1>
         <p>{{ headLine }}</p>
@@ -28,7 +28,7 @@
     </div>
 
     <!-- ================= 统计 ================= -->
-    <div class="summary">
+    <div class="summary tk-summary">
       <div class="sum-cell">
         <div class="sum-ico teal"><app-icon name="list" :size="18"></app-icon></div>
         <div class="sum-body">
@@ -63,8 +63,17 @@
       </div>
     </div>
 
+    <!-- 从工作台入口跳过来时带筛选条件，落地即生效。
+         不塞进 fStatus / fSource 控件：那几个是单选，装不下
+         「待完成」「个人计划」这类复合条件，单独做一条可清除的提示。 -->
+    <div class="landing-bar" v-if="landing">
+      <app-icon name="list" :size="14"></app-icon>
+      <span>来自工作台：<b>{{ landing.label }}</b></span>
+      <button @click="clearLanding">清除筛选</button>
+    </div>
+
     <!-- ================= 筛选 ================= -->
-    <div class="toolbar">
+    <div class="toolbar tk-toolbar">
       <div class="tb-line">
         <t-input v-model="q" placeholder="搜索任务或课程" clearable style="width:230px">
           <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
@@ -81,13 +90,88 @@
       </div>
       <div class="tb-line">
         <t-select v-model="fStatus" :options="statusOptions" style="width:118px"></t-select>
-        <t-select v-model="fCourse" :options="courseOptions" style="width:140px"></t-select>
+        <t-select v-model="fCourse" :options="courseOptions" filterable style="width:140px"></t-select>
         <t-select v-model="fType" :options="typeOptions" style="width:112px"></t-select>
         <t-select v-model="fDue" :options="dueOptions" style="width:124px"></t-select>
         <span class="sp"></span>
         <span class="tb-count">
           共 {{ tasks.length }} 项，筛出 <b>{{ filtered.length }}</b> 项
         </span>
+      </div>
+    </div>
+
+    <!-- 手机端：一行搜索 + 筛选入口。桌面那两行筛选整个隐藏，
+         不在原工具条里藏元素，免得 flex 换行残留空白。 -->
+    <div class="mb-task-bar">
+      <!-- 四格概览换成一行行动信号：横滑卡带会把数字和说明一起裁掉，
+           第三、四格等于不存在。这里只留「现在该干什么」的几个数，
+           不重复「共 11 项」，并和搜索、筛选同属一张控制卡。 -->
+      <div class="mb-kpi">
+        <span class="kpi-i kpi-todo"><b>{{ stat.todo }}</b> 待完成</span>
+        <i class="kpi-sep"></i>
+        <span class="kpi-i kpi-soon"><b>{{ stat.soon }}</b> 三天内</span>
+        <template v-if="stat.overdue">
+          <i class="kpi-sep"></i>
+          <span class="kpi-i kpi-over"><b>{{ stat.overdue }}</b> 逾期</span>
+        </template>
+        <i class="kpi-sep"></i>
+        <span class="kpi-i kpi-done"><b>{{ stat.done }}</b> 已完成</span>
+      </div>
+      <div class="mb-bar-row">
+        <t-input v-model="q" placeholder="搜索任务或课程" clearable>
+          <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
+        </t-input>
+        <button class="mb-filter-btn" :class="{ on: activeFilterCount }" @click="filterOpen = true">
+          <app-icon name="list" :size="16"></app-icon>筛选
+          <span v-if="activeFilterCount">{{ activeFilterCount }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 手机端：筛选与排序收进底部抽屉，页面上只留一行工具条 -->
+    <div class="mb-filter-mask" v-if="filterOpen" @click="filterOpen = false"></div>
+    <div class="mb-filter-sheet" v-if="filterOpen">
+      <div class="mb-sheet-hd">
+        <b>筛选与排序</b>
+        <button class="mb-sheet-reset" @click="resetFilter">重置</button>
+      </div>
+      <div class="mb-sheet-bd">
+        <div class="mb-f-group">
+          <div class="mb-f-label">来源</div>
+          <!-- 不用 filled 单选组：它自带一整块灰底板，折成两行后
+               圆角和选中白块全糊在一起，和下面几组描边控件不是一套语言 -->
+          <div class="mb-src-grid">
+            <button class="mb-src" :class="{ on: fSource === 'all' }" @click="fSource = 'all'">全部来源</button>
+            <button class="mb-src" :class="{ on: fSource === 'platform' }" @click="fSource = 'platform'">平台同步</button>
+            <button class="mb-src" :class="{ on: fSource === 'manual' }" @click="fSource = 'manual'">手动创建</button>
+            <button class="mb-src" :class="{ on: fSource === 'import' }" @click="fSource = 'import'">文件导入</button>
+          </div>
+        </div>
+        <div class="mb-f-group">
+          <div class="mb-f-label">排序</div>
+          <t-select v-model="sortBy" :options="sortOptions"></t-select>
+        </div>
+        <div class="mb-f-group">
+          <div class="mb-f-label">状态</div>
+          <t-select v-model="fStatus" :options="statusOptions"></t-select>
+        </div>
+        <div class="mb-f-group">
+          <div class="mb-f-label">课程 <em>可输入课程名搜索</em></div>
+          <t-select v-model="fCourse" :options="courseOptions" filterable
+                    placeholder="搜索或选择课程"></t-select>
+        </div>
+        <div class="mb-f-group">
+          <div class="mb-f-label">类型</div>
+          <t-select v-model="fType" :options="typeOptions"></t-select>
+        </div>
+        <div class="mb-f-group">
+          <div class="mb-f-label">时间</div>
+          <t-select v-model="fDue" :options="dueOptions"></t-select>
+        </div>
+      </div>
+      <div class="mb-sheet-ft">
+        <span>共 {{ tasks.length }} 项，筛出 <b>{{ filtered.length }}</b> 项</span>
+        <t-button theme="primary" @click="filterOpen = false">完成</t-button>
       </div>
     </div>
 
@@ -192,6 +276,11 @@
 
     <!-- ================= 任务详情抽屉（只读浏览） ================= -->
     <t-drawer v-model:visible="drawerVisible" size="460px" :footer="false" header="任务详情">
+      <!-- 手机端自带 header 的关闭按钮会跑出屏外，改自绘返回栏 -->
+      <div class="dw-back">
+        <button @click="drawerVisible = false">返回</button>
+        <b>任务详情</b>
+      </div>
 
       <template v-if="current">
         <h3 class="dw-title">{{ current.title }}</h3>
@@ -259,7 +348,8 @@
 
         <div class="fg">
           <label>课程</label>
-          <t-select v-model="draft.course_name" :options="coursePickOptions" placeholder="不关联课程"></t-select>
+          <t-select v-model="draft.course_name" :options="coursePickOptions" filterable
+                    placeholder="不关联课程"></t-select>
         </div>
         <div class="fg">
           <label>类型</label>
@@ -290,11 +380,13 @@
         </div>
         <div class="fg">
           <label>优先级</label>
-          <t-radio-group v-model="draft.priority" variant="default-filled" style="width:100%">
-            <t-radio-button :value="2">低</t-radio-button>
-            <t-radio-button :value="3">中</t-radio-button>
-            <t-radio-button :value="5">高</t-radio-button>
-          </t-radio-group>
+          <!-- 不用 filled 单选组：手机上会糊成一块灰底板。
+               三档摊开成等宽描边按钮，色块沿用列表里的优先级色。 -->
+          <div class="prio-pick">
+            <button :class="{ on: draft.priority === 2 }" @click="draft.priority = 2"><i class="pp p-low"></i>低</button>
+            <button :class="{ on: draft.priority === 3 }" @click="draft.priority = 3"><i class="pp p-mid"></i>中</button>
+            <button :class="{ on: draft.priority === 5 }" @click="draft.priority = 5"><i class="pp p-high"></i>高</button>
+          </div>
         </div>
 
         <div class="fg full">
@@ -379,6 +471,9 @@
         sessions: M.sessions,
         tasks: window.Store.tasks(),
 
+        filterOpen: false,
+        landing: null,
+
         q: '',
         fSource: 'all',
         fStatus: 'all',
@@ -402,6 +497,13 @@
     },
 
     computed: {
+      /* 手机工具条上的筛选角标：几个条件不是默认值就显示几 */
+      activeFilterCount() {
+        const self = this;
+        return ['fSource', 'fStatus', 'fCourse', 'fType', 'fDue']
+          .filter(function (k) { return self[k] !== 'all'; }).length;
+      },
+
       headLine() {
         if (!this.tasks.length) return '还没有任务。新建一个，或者等平台同步下来';
         const srcs = {};
@@ -460,6 +562,24 @@
           });
         }
         if (this.fType !== 'all') list = list.filter(function (t) { return t.source_type === self.fType; });
+
+        /* 工作台入口带来的复合筛选：待完成 = pending + in_progress，
+           个人计划 = 手动创建 + 文件导入。这两个都超出单选项的表达范围。 */
+        if (this.landing) {
+          const L = this.landing;
+          list = list.filter(function (t) {
+            if (L.scope === 'todo') {
+              if (!self.openOnly(t)) return false;
+            }
+            if (L.scope === 'soon') {
+              const d = U.dayDiff(self.todayIso, t.date);
+              if (d === null || d < 0 || d > 3) return false;
+            }
+            if (L.src === 'school' && t.source !== 'platform') return false;
+            if (L.src === 'mine' && t.source === 'platform') return false;
+            return true;
+          });
+        }
 
         if (this.fDue !== 'all') {
           list = list.filter(function (t) {
@@ -689,7 +809,12 @@
         this.fType = 'all';
         this.fDue = 'all';
         this.sortBy = 'due_asc';
+        this.landing = null;
         this.selected = [];
+      },
+
+      clearLanding() {
+        this.landing = null;
       },
 
       openDetail(t) {
@@ -875,6 +1000,21 @@
       }
       /* 从顶栏搜索「查看全部」过来：把关键词灌进筛选框 */
       if (qs.get('q') && !qs.get('new')) this.q = qs.get('q');
+
+      /* 工作台入口带 scope / src 落地筛选。
+         scope=todo 待完成、soon 三天内；src=school 学校待办、mine 个人计划。
+         两者可叠加，提示条上写清楚当前在看什么，一键能清掉。 */
+      const scope = qs.get('scope') || '';
+      const src = qs.get('src') || '';
+      if (scope || src) {
+        const scopeText = { todo: '待完成', soon: '3 天内到期' };
+        const srcText = { school: '学校待办', mine: '个人计划' };
+        this.landing = {
+          scope: scope,
+          src: src,
+          label: [scopeText[scope], srcText[src]].filter(Boolean).join(' · ') || '已筛选'
+        };
+      }
       if (location.search) history.replaceState(null, '', location.pathname);
     }
   });

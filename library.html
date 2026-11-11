@@ -49,7 +49,7 @@
     </div>
 
     <!-- ================= 工具条 ================= -->
-    <div class="toolbar">
+    <div class="toolbar lib-toolbar">
       <div class="tb-line">
         <t-input v-model="q" placeholder="搜文件名、课程、说明" clearable style="width:250px">
           <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
@@ -171,6 +171,12 @@
 
     <!-- ================= 详情抽屉 ================= -->
     <t-drawer v-model:visible="drawerVisible" size="480px" :footer="false" header="资料详情">
+
+      <!-- 手机端自带 header 的关闭按钮会跑出屏外，改自绘返回栏 -->
+      <div class="dw-back">
+        <button @click="drawerVisible = false">返回</button>
+        <b>资料详情</b>
+      </div>
 
       <template v-if="current">
         <div class="lib-dw-head">
@@ -501,6 +507,57 @@
       }
     }
   });
+
+  /* 课程卡带：真机靠手指滑，浏览器里鼠标拖不动（原生只把横向滚动交给
+     触摸板和触摸）。补一段指针拖拽，评审把窗口缩到手机宽度也能左右拖。
+     用事件委托，不等 Vue 挂载完。 */
+  (function () {
+    var strip = null, startX = 0, startLeft = 0, moved = false, dragEndAt = 0;
+
+    document.addEventListener('pointerdown', function (e) {
+      if (e.pointerType === 'touch') return;          /* 真机交给原生滚动 */
+      var el = e.target.closest && e.target.closest('.lib-courses');
+      if (!el) return;
+      strip = el;
+      moved = false;
+      dragEndAt = 0;
+      startX = e.clientX;
+      startLeft = el.scrollLeft;
+      el.classList.add('dragging');
+    });
+
+    document.addEventListener('pointermove', function (e) {
+      if (!strip) return;
+      var dx = e.clientX - startX;
+      if (Math.abs(dx) > 4) moved = true;
+      if (!moved) return;
+      e.preventDefault();
+      strip.scrollLeft = startLeft - dx;
+    });
+
+    function endDrag() {
+      if (strip) {
+        strip.classList.remove('dragging');
+        /* 拖完浏览器还会补一个 click，记个时间差，只吞这一次 */
+        dragEndAt = moved ? Date.now() : 0;
+      }
+      strip = null;
+      moved = false;
+    }
+    document.addEventListener('pointerup', endDrag);
+    document.addEventListener('pointercancel', endDrag);
+
+    /* 只拦截拖动结束那一下，避免把底下的课程按钮点掉；
+       隔一会儿再点，正常筛选。 */
+    document.addEventListener('click', function (e) {
+      if (dragEndAt && Date.now() - dragEndAt < 260 &&
+          e.target.closest && e.target.closest('.lib-courses')) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragEndAt = 0;
+      }
+    }, true);
+  })();
 })();
 </script>
 </body>

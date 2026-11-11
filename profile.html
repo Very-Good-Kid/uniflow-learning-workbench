@@ -177,6 +177,114 @@
 
   .dr-body .row:first-child { padding-top: 0; }
   .ex-form .row { border: 0; padding: 0 0 12px; }
+
+  /* ---------- 手机端：偏好 / 通知面板 ----------
+     桌面是「标签 84px | 分段控件 | 右侧说明」三栏，390px 下说明
+     被挤成单字竖列、分段按钮里的字也竖排。改成标签一行、控件
+     全宽一行、说明一行。含开关的行本来就只有两栏，保持一行。 */
+  @media (max-width: 768px) {
+    /* 小屏（360×640 这类）内容放不下时，pf-card 不能被压缩：
+       压缩会让「退出登录」溢到卡片可视区外，还正好压在底部五栏下面，
+       点上去命中的是底栏图标，看起来就像点了没反应。
+       改成不收缩，整页 .content 滚动，按钮一定滚得到。 */
+    .pf-card {
+      flex: 1 0 auto;
+      overflow: visible;
+    }
+    .pf-logout { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+    .pf-logout .t-button { width: 100%; }
+
+    .dr-body { padding: 0 14px 18px; }
+    .dr-lead { font-size: 12px; line-height: 1.6; }
+    .dr-foot { margin: 16px -14px -18px; padding: 12px 14px; }
+
+    .row:has(.seg),
+    .row:has(.chip-row),
+    .row:has(.ex-list) {
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 6px 10px;
+      padding: 12px 0;
+    }
+    .row:has(.seg) > .row-lb,
+    .row:has(.chip-row) > .row-lb,
+    .row:has(.ex-list) > .row-lb {
+      width: auto;
+      flex: 1 1 100%;
+      font-weight: 500;
+      color: var(--ink-1);
+    }
+    .row:has(.seg) > .seg { flex: 1 1 100%; }
+    .row:has(.seg) > .row-hint,
+    .row:has(.chip-row) > .row-ct,
+    .row:has(.ex-list) > .row-ct { flex: 1 1 100%; line-height: 1.5; }
+    .row:has(.seg) > .row-hint { font-size: 11px; }
+
+    .seg { width: 100%; }
+    .seg button {
+      flex: 1 1 0;
+      min-width: 0;
+      height: 36px;
+      padding: 0 4px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .chip { height: 34px; font-size: 12px; }
+    .ex-item { height: auto; min-height: 30px; padding: 5px 8px; }
+
+    /* 注意：<t-switch> 渲染后是 div.t-switch，不是 <t-switch> 标签。
+       :has() 必须按类名匹配，否则整条规则静默失效。 */
+    .row:has(.t-switch) .row-ct { min-width: 0; }
+    .row:has(.t-switch) .row-hint { font-size: 11px; line-height: 1.5; }
+
+    /* 手机端删解释性文字，事实数据保留：
+       页头那句「认证由谁校验」在「账号与安全」里还有一遍，
+       「点开逐项调整」父条目自带箭头，不用再说。 */
+    .pf-page-head p { display: none; }
+    .pf-page-head { margin-bottom: 10px; }
+    .pf-hd-hint { display: none; }
+    .sec:has(.idcard) .sec-hd .hint { font-size: 10.5px; }
+    /* 学院 + 专业 + 年级 + 层次挤不进一行会把「本科」挤成孤行，
+       手机端让学院独占一行，下面接专业 · 年级 · 层次 */
+    .sec:has(.idcard) .idc-college { display: block; }
+    .sec:has(.idcard) .idc-college + .idc-sep { display: none; }
+
+    /* 返回栏下面那段说明别贴顶 */
+    .dr-lead { margin-top: 14px; }
+
+    /* 「AI 估算耗时」这类：标签、开关、说明挤一行，文字位置不齐。
+       和上面的分段行同口径，标签独占一行，开关与说明再一行。 */
+    .row:has(.t-switch):has(.row-hint) {
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 6px 10px;
+      padding: 12px 0;
+    }
+    .row:has(.t-switch):has(.row-hint) > .row-lb {
+      width: auto; flex: 1 1 100%;
+      font-weight: 500; color: var(--ink-1);
+    }
+    .row:has(.t-switch):has(.row-hint) > .row-ct { flex: 1 1 100%; min-width: 0; }
+    .row:has(.t-switch):has(.row-hint) > .row-hint { flex: 1 1 100%; }
+    .row:has(.t-switch):has(.row-hint) > .t-switch { flex: 0 0 auto; margin-left: auto; }
+
+    /* 登录记录子面板：时间 130px 定宽在手机上会挤，改上下两行 */
+    .log-i { flex-wrap: wrap; gap: 3px 10px; padding: 9px 0; }
+    .log-i .t { width: auto; flex: 1 1 100%; font-size: 11px; }
+    .log-i .d { flex: 1 1 auto; }
+    .log-i .ip { flex: 0 0 auto; }
+  }
+
+  .lnk-edit {
+    margin-left: 8px; height: 26px; padding: 0 6px;
+    border: 0; background: none; color: var(--brand-7);
+    font: inherit; font-size: 11.5px; cursor: pointer;
+  }
+
+  /* 四个父入口竖排，退出登录沉到最下面 */
+  .pf-entries .sub-item + .sub-item { margin-top: 8px; }
+  .pf-hint { margin: 12px 2px 0; font-size: 11.5px; color: var(--ink-4); line-height: 1.6; }
+  .pf-logout { padding: 12px 18px 14px; }
 </style>
 </head>
 <body>
@@ -184,13 +292,10 @@
 <div id="app">
   <app-shell active="profile">
 
-    <div class="page-head">
+    <div class="page-head pf-page-head">
       <div>
         <h1>个人中心</h1>
         <p>账号信息与学习设置。登录走学校统一身份认证，密码由认证中心校验，本平台不保存</p>
-      </div>
-      <div class="ph-right">
-        <t-button variant="outline" @click="logout">退出登录</t-button>
       </div>
     </div>
 
@@ -210,13 +315,9 @@
                 <span class="idc-sid">{{ user.studentId }}</span>
               </div>
               <div class="idc-line2">
-                <span>{{ user.college }}</span>
+                <span class="idc-college">{{ user.college }}</span>
                 <span class="idc-sep">/</span>
-                <span>{{ user.major }}</span>
-                <span class="idc-sep">·</span>
-                <span>2026 级</span>
-                <span class="idc-sep">·</span>
-                <span>本科</span>
+                <span class="idc-rest">{{ user.major }} · 2026 级 · 本科</span>
               </div>
             </div>
             <span class="idc-badge">
@@ -227,13 +328,62 @@
         </div>
       </div>
 
-      <!-- ============ 头像与昵称 ============ -->
+      <!-- ============ 四个父入口：每个点开二级面板 ============ -->
       <div class="sec">
         <div class="sec-hd">
-          <h3>头像与昵称</h3>
-          <span class="hint">只影响界面上的称呼</span>
+          <h3>设置</h3>
+          <span class="hint pf-hd-hint">点开逐项调整</span>
         </div>
-        <div class="sec-bd">
+        <div class="sec-bd pf-entries">
+          <div class="sub-item" @click="prefOpen = true">
+            <div class="sub-main">
+              <div class="sub-t">学习偏好</div>
+              <div class="sub-d">{{ prefSummary }}</div>
+            </div>
+            <span class="sub-act">调整</span>
+            <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
+          </div>
+
+          <div class="sub-item" @click="notifyOpen = true">
+            <div class="sub-main">
+              <div class="sub-t">提醒设置</div>
+              <div class="sub-d">{{ notifySummary }}</div>
+            </div>
+            <span class="sub-act">调整</span>
+            <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
+          </div>
+
+          <div class="sub-item" @click="acctOpen = true">
+            <div class="sub-main">
+              <div class="sub-t">账号与安全</div>
+              <div class="sub-d">头像与昵称 · 提醒邮箱 · 登录记录</div>
+            </div>
+            <span class="sub-act">查看</span>
+            <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
+          </div>
+
+          <p class="pf-hint">系统管理涉及用户、课程、资料三张表，请在电脑端打开。</p>
+        </div>
+      </div>
+
+      <!-- 退出登录：放在最下面，不和设置项混在一起 -->
+      <div class="sec pf-logout">
+        <t-button variant="outline" @click="logout">退出登录</t-button>
+      </div>
+
+    </div>
+
+    <!-- 账号与安全 · 二级面板：头像昵称、邮箱、登录记录都收在这里 -->
+    <t-drawer v-model:visible="acctOpen" size="560px" :footer="false" header="账号与安全">
+      <div class="dw-back">
+        <button @click="acctOpen = false">返回</button>
+        <b>账号与安全</b>
+      </div>
+      <div class="dr-body">
+        <p class="dr-lead">头像、提醒邮箱与登录记录。认证密码由学校统一身份认证管理，本平台不保存。</p>
+
+        <div class="dr-sec">
+          <div class="dr-sec-t">头像与昵称</div>
           <div class="row">
             <div class="row-lb">昵称</div>
             <div class="row-ct" style="max-width:280px">
@@ -252,98 +402,43 @@
             <div class="row-hint">不上传就显示姓名首字</div>
           </div>
         </div>
-      </div>
 
-      <!-- ============ 登录方式 ============ -->
-      <div class="sec">
-        <div class="sec-hd">
-          <h3>登录方式</h3>
-          <span class="hint">统一身份认证</span>
-        </div>
-        <div class="sec-bd">
+        <div class="dr-sec">
+          <div class="dr-sec-t">提醒邮箱</div>
           <div class="row">
-            <div class="row-lb">认证账号</div>
-            <div class="row-ct">
-              <div class="ss-line"><span class="dot"></span>已接通 · {{ user.authAccount }}</div>
+            <div class="row-lb">邮箱</div>
+            <div class="row-ct" style="font-size:12.5px;color:var(--ink-2)">
+              {{ mail }}
+              <button class="lnk-edit" @click="editMail">修改</button>
             </div>
-            <div class="row-hint">上次登录 11/18 16:32</div>
           </div>
-          <div class="row">
-            <div class="row-lb">数据同步</div>
-            <div class="row-ct">
-              <div class="ss-line">
-                <span class="dot" :class="{ off: !syncAllowed }"></span>
-                {{ syncAllowed ? '已授权读取课表与在读课程' : '已关闭，不再读取教务数据' }}
-              </div>
-            </div>
-            <div class="row-hint" style="margin-right:2px">仅停读课表</div>
-            <t-switch v-model="syncAllowed" size="small" @change="toggleSync"></t-switch>
-          </div>
+          <div class="row-hint" style="margin-top:4px">这里只改收件地址，推不推送在「提醒设置」里控制。</div>
         </div>
-      </div>
 
-      <!-- ============ 学习设置（学习偏好是它的二级子项） ============ -->
-      <div class="sec">
-        <div class="sec-hd">
-          <h3>学习设置</h3>
-          <span class="hint">决定 AI 怎么给你排学习</span>
-        </div>
-        <div class="sec-bd">
-
-          <div class="sub-item" @click="prefOpen = true">
+        <div class="dr-sec">
+          <div class="dr-sec-t">安全</div>
+          <div class="sub-item" @click="logOpen = true">
             <div class="sub-main">
-              <div class="sub-t">学习偏好</div>
-              <div class="sub-d">{{ prefSummary }}</div>
+              <div class="sub-t">登录记录</div>
+              <div class="sub-d">{{ logins.length ? '最近 3 次 · ' + logins[0].t + ' 最近一次' : '暂无登录记录' }}</div>
             </div>
-            <span class="sub-act">调整</span>
-            <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- ============ 通知与提醒 ============ -->
-      <div class="sec">
-        <div class="sec-hd">
-          <h3>通知与提醒</h3>
-          <span class="hint">系统什么时候主动找你</span>
-        </div>
-        <div class="sec-bd">
-          <div class="sub-item" @click="notifyOpen = true">
-            <div class="sub-main">
-              <div class="sub-t">提醒设置</div>
-              <div class="sub-d">{{ notifySummary }}</div>
-            </div>
-            <span class="sub-act">调整</span>
+            <span class="sub-act">查看</span>
             <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
           </div>
         </div>
-      </div>
 
-      <!-- ============ 登录记录 ============ -->
-      <div class="sec">
-        <div class="sec-hd">
-          <h3>登录记录</h3>
-          <span class="hint">
-            最近 3 次 · 看到不认识的记录，先去教务改密码
-            <t-button variant="text" size="small" theme="primary" @click="logoutAll">退出全部设备</t-button>
-          </span>
-        </div>
-        <div class="sec-bd">
-          <div class="log-list">
-            <div class="log-i" v-for="l in logins" :key="l.t">
-              <span class="t">{{ l.t }}</span>
-              <span class="d">{{ l.d }}</span>
-              <span class="ip">{{ l.ip }}</span>
-            </div>
-          </div>
+        <div class="dr-foot">
+          <t-button theme="primary" @click="acctOpen = false">完成</t-button>
         </div>
       </div>
-
-    </div>
+    </t-drawer>
 
     <!-- 学习偏好 · 二级面板 -->
     <t-drawer v-model:visible="prefOpen" size="560px" :footer="false" header="学习偏好">
+      <div class="dw-back">
+        <button @click="prefOpen = false">返回</button>
+        <b>学习偏好</b>
+      </div>
       <div class="dr-body">
         <p class="dr-lead">
           这几项决定 AI 把学习排在什么时候。改完立刻影响候选计划的排法。
@@ -437,6 +532,10 @@
 
     <!-- 通知与提醒 · 二级面板 -->
     <t-drawer v-model:visible="notifyOpen" size="560px" :footer="false" header="通知与提醒">
+      <div class="dw-back">
+        <button @click="notifyOpen = false">返回</button>
+        <b>通知与提醒</b>
+      </div>
       <div class="dr-body">
         <p class="dr-lead">
           这里配的是「系统能不能主动找你」。消息列表在顶部铃铛里，两件事别混。
@@ -490,7 +589,7 @@
           </div>
           <div class="row">
             <div class="row-lb">邮件</div>
-            <div class="row-ct" style="font-size:12.5px;color:var(--ink-2)">{{ mail }}</div>
+            <div class="row-ct" style="font-size:12.5px;color:var(--ink-3)">收件地址在「账号与安全」里设置</div>
             <t-switch v-model="mailOn" size="small" @change="toast(mailOn ? '已开启邮件提醒' : '已关闭邮件提醒')"></t-switch>
           </div>
         </div>
@@ -500,6 +599,42 @@
         </div>
       </div>
     </t-drawer>
+
+    <!-- 登录记录 · 二级面板 -->
+    <t-drawer v-model:visible="logOpen" size="560px" :footer="false" header="登录记录">
+      <div class="dw-back">
+        <button @click="logOpen = false">返回</button>
+        <b>登录记录</b>
+      </div>
+      <div class="dr-body">
+        <p class="dr-lead">最近 3 次登录。看到不认识的记录，先去教务改密码。</p>
+        <div class="log-list">
+          <div class="log-i" v-for="l in logins" :key="l.t">
+            <span class="t">{{ l.t }}</span>
+            <span class="d">{{ l.d }}</span>
+            <span class="ip">{{ l.ip }}</span>
+          </div>
+        </div>
+        <div class="dr-foot">
+          <t-button variant="outline" @click="logoutAll">退出全部设备</t-button>
+        </div>
+      </div>
+    </t-drawer>
+
+    <!-- 修改邮箱 -->
+    <t-dialog v-model:visible="mailEditVisible" header="修改邮箱" width="420px" :footer="false">
+      <div class="fg">
+        <label>邮箱地址</label>
+        <t-input v-model="mailDraft" placeholder="name@cqupt.edu.cn"></t-input>
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-3);line-height:1.6;margin-top:8px">
+        邮件提醒会发到这个地址。校内邮箱由统一身份认证同步，这里只改本平台的提醒收件地址。
+      </div>
+      <div class="dlg-acts" style="margin-top:14px">
+        <t-button variant="outline" @click="mailEditVisible = false">取消</t-button>
+        <t-button theme="primary" @click="saveMail">保存</t-button>
+      </div>
+    </t-dialog>
 
     <!-- 添加例外 -->
     <t-dialog v-model:visible="exVisible" header="加一条「别排」的时间" width="400px"
@@ -512,7 +647,9 @@
         <div class="row">
           <div class="row-lb" style="width:52px">从</div>
           <t-select v-model="exDraft.s" :options="hourOpts" style="width:120px"></t-select>
-          <div class="row-lb" style="width:32px;text-align:center">到</div>
+        </div>
+        <div class="row">
+          <div class="row-lb" style="width:52px">到</div>
           <t-select v-model="exDraft.e" :options="hourOpts" style="width:120px"></t-select>
         </div>
         <div class="row">
@@ -561,9 +698,12 @@
       var hourOpts = [];
       for (var x = H0; x <= H1; x++) hourOpts.push({ label: pad(x) + ':00', value: x });
 
+      /* 身份信息跟登录者走：换成 lisi 登录，这里就是李四的学院和专业 */
+      var me = window.AppUser.current();
+
       return {
-        user: C.demoUser,
-        nickname: C.demoUser.nickname,
+        user: me,
+        nickname: me.nickname,
         syncAllowed: true,
         logins: [
           { t: '11/18 08:12', d: 'Chrome · Windows', ip: '10.12.**.**' },
@@ -573,6 +713,10 @@
 
         prefOpen: false,
         notifyOpen: false,
+        acctOpen: false,
+        logOpen: false,
+        mailEditVisible: false,
+        mailDraft: '',
 
         remind: '1d',
         remindOpts: [{ v: 'same', t: '当天' }, { v: '1d', t: '提前 1 天' }, { v: '3d', t: '提前 3 天' }],
@@ -581,7 +725,7 @@
         quiet: '23',
         quietOpts: [{ v: 'off', t: '不设置' }, { v: '23', t: '23:00 起' }, { v: '22', t: '22:00 起' }],
         mailOn: false,
-        mail: C.demoUser.studentId + '@cqupt.edu.cn',
+        mail: me.studentId + '@cqupt.edu.cn',
         notifies: [
           { k: 'due',      t: '任务即将截止',     d: '按上面的提前量提醒',         on: true  },
           { k: 'plan',     t: '计划有变更要确认', d: 'AI 重排后等你确认才生效',    on: true  },
@@ -816,7 +960,8 @@
       },
 
       saveNick: function () {
-        C.demoUser.nickname = this.nickname;
+        /* 只改本次会话里的称呼，刷新复位。真实实现在 profile 接口 */
+        this.user.nickname = this.nickname;
         this.toast('昵称已保存');
       },
       toggleSync: function (v) {
@@ -826,13 +971,31 @@
         var fn = { warning: TDesign.MessagePlugin.warning, success: TDesign.MessagePlugin.success }[theme] || TDesign.MessagePlugin.success;
         fn(t);
       },
+      goAdmin: function () { location.href = 'admin.html'; },
+
       logout: function () {
         /* 会话键与 login.html 的 LoginSession 同一个，清完再跳，
            否则登录页的「已登录自动跳首页」会把人又弹回来 */
         sessionStorage.removeItem('uniflow.proto.session');
         location.href = 'login.html?logout=1';
       },
-      logoutAll: function () { this.toast('已退出全部设备'); }
+      logoutAll: function () { this.toast('已退出全部设备'); },
+
+      editMail: function () {
+        this.mailDraft = this.mail;
+        this.mailEditVisible = true;
+      },
+
+      saveMail: function () {
+        var v = String(this.mailDraft || '').trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+          TDesign.MessagePlugin.warning('填一个能收信的邮箱地址');
+          return;
+        }
+        this.mail = v;
+        this.mailEditVisible = false;
+        this.toast('邮箱已更新为 ' + v);
+      }
     }
   });
 })();

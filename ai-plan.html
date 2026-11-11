@@ -14,7 +14,7 @@
   <app-shell active="plan">
 
     <!-- ================= 页头 ================= -->
-    <div class="page-head">
+    <div class="page-head ai-page-head">
       <div>
         <h1>AI 学习规划</h1>
         <p>说一句需求就能生成计划；AI 只在你课程和已有日程之外的空档里安排，没确认的时段用虚线标出</p>
@@ -27,7 +27,18 @@
       </div>
     </div>
 
-    <div class="plan-wrap">
+    <!-- 手机端：对话 / 候选计划切换，不再把候选区挤在对话下面 -->
+    <div class="mb-plan-tabs">
+      <button :class="{ on: mbView === 'chat' }" @click="mbView = 'chat'">
+        <app-icon name="sparkle" :size="15"></app-icon>对话
+      </button>
+      <button :class="{ on: mbView === 'plan' }" @click="mbView = 'plan'">
+        <app-icon name="calendar" :size="15"></app-icon>候选计划
+        <span class="mb-plan-n" v-if="cand.length">{{ cand.length }}</span>
+      </button>
+    </div>
+
+    <div class="plan-wrap" :class="'mb-view-' + mbView">
 
       <!-- ================= 左：对话 ================= -->
       <div class="chat">
@@ -347,7 +358,7 @@
     data() {
       return {
         U: U,
-        user: C.demoUser,
+        user: window.AppUser.current(),
         week: WEEK,
 
         tasks: M.tasks.slice(),
@@ -364,6 +375,8 @@
         confirmed: false,
         version: 1,
         hasPlan: false,
+        /* 手机端：对话与候选计划分两个视图，不挤在同一屏 */
+        mbView: 'chat',
         stage: 'idle',
         missing: null,
         openMap: {},
@@ -652,6 +665,9 @@
         this.draftText = '';
         this.openMap = {};
         this.histVisible = false;
+        /* 手机上按这份对话有没有候选计划落在对应视图，别停在一屏空计划上。
+           桌面不读 mbView，plan-wrap 仍是左右双栏。 */
+        this.mbView = this.cand.length ? 'plan' : 'chat';
 
         if (!this.msgs.length) this.initChat();
 
@@ -1148,6 +1164,13 @@
             paras: ['这个范围里排不出学习时段：课程和已有日程把可用空档占满了。换个范围，或者把每天的时长上限放宽一点。']
           });
           return;
+        }
+
+        /* 手机上候选计划是独立一屏；排完自动切过去，别让「排好了」
+           停在聊天里、用户还得自己找入口。对话 tab 上带数字角标，
+           点一下就能回来看这句回复。 */
+        if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+          this.mbView = 'plan';
         }
 
         const total = r.items.reduce(function (s, b) { return s + b.minutes; }, 0);

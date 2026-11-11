@@ -6,6 +6,53 @@
 (function () {
   const C = window.APP_CONFIG;
 
+  /* 当前登录者。登录页把 student_id / name / role 写进 sessionStorage，
+     这里按 student_id 去 mock.users 取完整资料（学院、专业、脱敏学号）。
+     没登录、或直接双击打开某个页面时回退到 config 的演示账号，界面不会空。
+     换个人登录，顶栏和个人中心就跟着换——这就是「登录态绑到界面」。 */
+  window.AppUser = {
+    current: function () {
+      var base = C.demoUser;
+      var s = null;
+      try { s = JSON.parse(sessionStorage.getItem('uniflow.proto.session') || 'null'); }
+      catch (e) { return base; }
+      if (!s || !s.student_id) return base;
+
+      var list = (window.MOCK && window.MOCK.users) || [];
+      var u = list.filter(function (x) { return x.student_id === s.student_id; })[0];
+      if (!u) return base;
+
+      var sid = String(u.student_id);
+      return {
+        name: u.name,
+        studentId: sid,
+        /* 顶栏只显示脱敏学号：教室投影、宿舍共用电脑上不该裸奔 */
+        studentIdMasked: sid.slice(0, 4) + '****' + sid.slice(-2),
+        authAccount: u.auth_account,
+        nickname: u.nickname || '',
+        college: u.college,
+        major: u.major,
+        role: u.role
+      };
+    }
+  };
+
+  /* 手机底部五栏：顺序是宝定的「日程 / 任务 / 工作台 / 资料 / 我的」。
+     短标签另给一份，导航里那串长名字塞不进 78px 一格。
+     选中态仍读 app-shell 的 active，桌面侧边栏与手机共用一套。 */
+  const MB_SHORT = {
+    schedule: '日程', tasks: '任务', home: '工作台',
+    library: '资料', profile: '我的'
+  };
+  const MB_TABS = ['schedule', 'tasks', 'home', 'library', 'profile']
+    .map(function (k) {
+      return C.nav.filter(function (n) { return n.key === k; })[0];
+    })
+    .filter(Boolean)
+    .map(function (n) {
+      return { key: n.key, label: MB_SHORT[n.key], icon: n.icon, href: n.href };
+    });
+
   const ICONS = {
     grid: '<rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/>',
     list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4.2 5.3l1.3 1.3L8 4.1"/><path d="M4.2 11.3l1.3 1.3L8 10.1"/><path d="M4.2 17.3l1.3 1.3L8 16.1"/>',
@@ -56,11 +103,25 @@
         nav: C.nav,
         foot: C.navFoot,
         version: C.version,
-        user: C.demoUser,
+        user: window.AppUser.current(),
         /* 未读数走 NotifyStore；没引 mock.js 的页面（交付清单）没有角标 */
-        unread: window.NotifyStore ? window.NotifyStore.unreadCount() : 0
+        unread: window.NotifyStore ? window.NotifyStore.unreadCount() : 0,
+        mbSearchOpen: false,
+        mobileTabs: MB_TABS
       };
     },
+
+    computed: {
+      /* 手机顶栏只放一行短标题，长名字交给省略号 */
+      pageTitle() {
+        const key = this.active;
+        const n = C.nav.filter(function (x) { return x.key === key; })[0];
+        if (n) return n.label;
+        if (key === 'admin') return '系统管理';
+        return C.brand.name;
+      }
+    },
+
     mounted() {
       /* 消息页改已读时要让角标跟着变。这是全站唯一「页面写、外壳读」
          的数据，所以用事件广播，不靠 props 逐层传。 */
@@ -69,9 +130,16 @@
         self.unread = window.NotifyStore ? window.NotifyStore.unreadCount() : 0;
       };
       window.addEventListener('notify:change', this._onNotify);
+
+      this._onEsc = function (ev) {
+        if (ev.key === 'Escape' && self.mbSearchOpen) self.closeMbSearch();
+      };
+      window.addEventListener('keydown', this._onEsc);
     },
     beforeUnmount() {
       if (this._onNotify) window.removeEventListener('notify:change', this._onNotify);
+      if (this._onEsc) window.removeEventListener('keydown', this._onEsc);
+      document.body.classList.remove('mb-search-open');
     },
     methods: {
       go(item) {
@@ -88,6 +156,31 @@
       openNotify() {
         if (/messages\.html$/.test(location.pathname)) return;
         location.href = 'messages.html';
+      },
+      goPlan() {
+        if (/ai-plan\.html$/.test(location.pathname)) return;
+        location.href = 'ai-plan.html';
+      },
+      /* 手机上没有 Ctrl+K，搜索框收进全屏层，复用同一个 AppSearchBox */
+      toggleMbSearch() {
+        const self = this;
+        const v = !this.mbSearchOpen;
+        this.mbSearchOpen = v;
+        document.body.classList.toggle('mb-search-open', v);
+        if (v) {
+          /* 层是 v-if 出来的，等挂载完再开面板、聚焦输入框。
+             关闭时组件随层一起销毁，输入状态自然清空。 */
+          this.$nextTick(function () {
+            const box = self.$refs.mobileSearchBox;
+            if (box && box.openPanel) box.openPanel();
+            const input = document.querySelector('.mb-search-layer .search input');
+            if (input) input.focus();
+          });
+        }
+      },
+      closeMbSearch() {
+        this.mbSearchOpen = false;
+        document.body.classList.remove('mb-search-open');
       }
     },
     template: [
@@ -117,7 +210,11 @@
       '  </aside>',
       '  <div class="main">',
       '    <header class="topbar">',
-      '      <app-search-box />',
+      '      <div class="mb-brand">',
+      '        <div class="mb-mark"><app-icon name="cap" :size="16" /></div>',
+      '        <span class="mb-title">{{ pageTitle }}</span>',
+      '      </div>',
+      '      <app-search-box ref="searchBox" />',
       '      <div class="tb-right">',
       '        <button class="icon-btn" title="消息与通知" @click="openNotify">',
       '          <t-badge :count="unread" :offset="[3, -1]"><app-icon name="bell" :size="19" /></t-badge>',
@@ -128,9 +225,30 @@
       '          <div class="user-meta"><b>{{ user.name }}</b><span>{{ user.studentIdMasked }}</span></div>',
       '        </div>',
       '      </div>',
+      '      <div class="mb-right">',
+      '        <button class="mb-ico" title="搜索" @click="toggleMbSearch"><app-icon name="search" :size="19" /></button>',
+      '        <button class="mb-ico" title="AI 学习规划" @click="goPlan"><app-icon name="sparkle" :size="19" /></button>',
+      '        <button class="mb-ico" title="消息与通知" @click="openNotify">',
+      '          <t-badge :count="unread" :offset="[2, -2]"><app-icon name="bell" :size="19" /></t-badge>',
+      '        </button>',
+      '        <button class="mb-ico" title="个人中心" @click="goProfile">',
+      '          <t-avatar size="28px" style="background:var(--brand-1);color:var(--brand-8);font-size:12px">{{ user.name[0] }}</t-avatar>',
+      '        </button>',
+      '      </div>',
       '    </header>',
       '    <main class="content"><slot></slot></main>',
       '  </div>',
+      '  <div class="mb-search-layer" v-if="mbSearchOpen">',
+      '    <app-search-box ref="mobileSearchBox" />',
+      '  </div>',
+      '  <button class="mb-search-close" v-if="mbSearchOpen" @click="closeMbSearch">取消</button>',
+      '  <nav class="mb-tabbar">',
+      '    <div v-for="t in mobileTabs" :key="t.key" class="mb-tab"',
+      '         :class="{ active: t.key === active }" @click="go(t)">',
+      '      <app-icon :name="t.icon" :size="21" />',
+      '      <span>{{ t.label }}</span>',
+      '    </div>',
+      '  </nav>',
       '</div>'
     ].join('\n')
   };

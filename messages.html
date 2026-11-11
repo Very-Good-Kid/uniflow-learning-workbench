@@ -32,7 +32,7 @@
          两行筛选的口径和任务页一致：状态在前（互斥），来源在后（互斥），
          搜索永远在最右。来源筛选用 chip 不用下拉，因为只有四类，
          摊开比藏起来快。 -->
-    <div class="toolbar">
+    <div class="toolbar nt-toolbar">
       <div class="tb-line">
         <t-radio-group v-model="tab" variant="default-filled" size="small" @change="onTabChange">
           <t-radio-button value="all">全部 {{ all.length }}</t-radio-button>
@@ -43,12 +43,14 @@
 
         <span class="tb-sep"></span>
 
-        <button class="chip" :class="{ on: fSrc === 'all' }" @click="fSrc = 'all'">全部来源</button>
-        <button class="chip" v-for="s in srcChips" :key="s.key"
-                :class="{ on: fSrc === s.key }" @click="fSrc = s.key">
-          <i :style="{ background: s.color }"></i>{{ s.label }}
-          <span class="c-num">{{ s.count }}</span>
-        </button>
+        <div class="nt-chips">
+          <button class="chip" :class="{ on: fSrc === 'all' }" @click="fSrc = 'all'">全部来源</button>
+          <button class="chip" v-for="s in srcChips" :key="s.key"
+                  :class="{ on: fSrc === s.key }" @click="fSrc = s.key">
+            <i :style="{ background: s.color }"></i>{{ s.label }}
+            <span class="c-num">{{ s.count }}</span>
+          </button>
+        </div>
 
         <span class="sp"></span>
 
@@ -99,8 +101,13 @@
         </div>
       </div>
 
-      <!-- 右：阅读区 -->
-      <div class="msg-read">
+      <!-- 右：阅读区。手机上是整屏详情，带返回栏 -->
+      <div class="msg-read" :class="{ 'mb-open': mbDetail }">
+
+        <div class="mb-read-back">
+          <button @click="mbDetail = false"><app-icon name="chev-left" :size="16"></app-icon>消息列表</button>
+          <span v-if="current">{{ current.source_name }}</span>
+        </div>
 
         <template v-if="current">
           <div class="msg-read-bd">
@@ -321,6 +328,8 @@
         fSrc: 'all',
         q: '',
         currentId: null,
+        /* 手机端：详情是整屏跳转，不是列表下面那一小条 */
+        mbDetail: false,
         exVisible: false
       };
     },
@@ -446,7 +455,10 @@
     watch: {
       /* 换消息时把阅读区滚回顶部。不这么做，上一条读到了底部，
          自动跳到下一条时打开的就是半截正文 */
-      currentId() {
+      currentId(v) {
+        /* 这条从列表里消失（未读清完 / 切筛选）时，手机端退回列表，
+           别留一屏没有正文的详情 */
+        if (!v) this.mbDetail = false;
         this.$nextTick(function () {
           const bd = document.querySelector('.msg-read-bd');
           if (bd) bd.scrollTop = 0;
@@ -475,6 +487,7 @@
 
       open(m) {
         this.currentId = m.id;
+        this.mbDetail = true;
       },
 
       step(dir) {

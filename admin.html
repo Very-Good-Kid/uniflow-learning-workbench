@@ -120,6 +120,83 @@
     font-size: 11px; color: var(--ink-3); margin-top: 2px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 430px;
   }
+
+  /* 手机端专用的父级列表与返回条，桌面隐藏 */
+  .adm-branches, .adm-back { display: none; }
+
+  @media (max-width: 768px) {
+    .adm-tabs { display: none; }
+
+    .adm-branches { display: block; padding: 8px; overflow-y: auto; }
+    .adm-branch {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px;
+      background: #fff; cursor: pointer;
+    }
+    .adm-branch + .adm-branch { margin-top: 8px; }
+    .adm-branch:active { border-color: var(--brand-4); background: #FCFEFE; }
+    .adm-branch .bi {
+      width: 30px; height: 30px; flex: 0 0 30px; border-radius: 8px;
+      background: var(--brand-1); color: var(--brand-7);
+      display: grid; place-items: center;
+    }
+    .adm-branch .bm { flex: 1; min-width: 0; }
+    .adm-branch .bt { font-size: 13px; color: var(--ink-1); }
+    .adm-branch .bd { font-size: 11.5px; color: var(--ink-3); margin-top: 3px; }
+
+    .adm-back {
+      display: flex; align-items: center; gap: 6px;
+      height: 48px; flex: 0 0 48px; padding: 0 8px;
+      border-bottom: 1px solid var(--line); background: #fff;
+    }
+    .adm-back button {
+      height: 40px; padding: 0 10px; border: 0; background: none;
+      color: var(--brand-7); font: inherit; font-size: 13px; cursor: pointer;
+    }
+    .adm-back button::before {
+      content: ''; display: inline-block; width: 8px; height: 8px;
+      margin-right: 6px; border-left: 1.6px solid currentColor;
+      border-bottom: 1.6px solid currentColor; transform: rotate(45deg);
+    }
+    .adm-back b { font-size: 14px; font-weight: 500; color: var(--ink-1); }
+
+    /* 左树 + 右表：手机上树变横向筛选条，内容占满宽 */
+    .adm-split { flex-direction: column; }
+    .adm-tree {
+      flex: 0 0 auto; width: 100%; max-height: none;
+      display: flex; gap: 6px; overflow-x: auto; overflow-y: hidden;
+      border-right: 0; border-bottom: 1px solid var(--line);
+      padding: 8px 10px; -webkit-overflow-scrolling: touch;
+    }
+    .adm-tree::-webkit-scrollbar { height: 0; }
+    .adm-tree .tnode {
+      flex: 0 0 auto; width: auto; height: 32px; padding: 0 10px;
+      border: 1px solid var(--line); border-radius: 16px; background: #fff;
+      white-space: nowrap;
+    }
+    .adm-tree .tnode .fold { display: none; }
+    .adm-tree .tnode.lv2 { padding-left: 10px; }
+    .adm-main { flex: 1 1 auto; min-height: 0; width: 100%; overflow: auto; }
+
+    /* 筛选：搜索独占一行，下拉各半，操作按钮再独占一行，别横向拖 */
+    .adm-body .toolbar { padding: 8px 10px; }
+    .adm-body .tb-line { flex-wrap: wrap; gap: 8px; }
+    .adm-body .tb-line .t-input,
+    .adm-body .tb-line .t-input__wrap { flex: 1 1 100%; width: 100% !important; }
+    .adm-body .tb-line .t-select { flex: 1 1 calc(50% - 4px); width: auto !important; }
+    .adm-body .tb-line > .t-button { flex: 1 1 100%; }
+    .adm-body .tb-line .sp,
+    .adm-body .tb-line .tb-count { display: none; }
+
+    /* 四格统计在手机上收起：数字在树节点计数和表格里都有，
+      128px 的高度留给表格更值 */
+    .adm-card .summary { display: none; }
+
+    /* 管理端表格信息密度高，手机保底能横向看全，文档里注明建议桌面 */
+    .adm-main table.tasks { min-width: 620px; }
+
+    .adm-card .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
 </style>
 </head>
 <body>
@@ -148,6 +225,24 @@
           <app-icon :name="t.icon" :size="15"></app-icon>
           <span>{{ t.t }}</span>
         </div>
+      </div>
+
+      <!-- 手机端：六个分支做成父条目，点进去看二级内容 -->
+      <div class="adm-branches" v-if="!tab">
+        <div class="adm-branch" v-for="t in tabs" :key="t.k" @click="tab = t.k">
+          <span class="bi"><app-icon :name="t.icon" :size="15"></app-icon></span>
+          <div class="bm">
+            <div class="bt">{{ t.t }}</div>
+            <div class="bd">{{ t.d }}</div>
+          </div>
+          <app-icon name="chev-right" :size="14" style="color:var(--ink-4)"></app-icon>
+        </div>
+      </div>
+
+      <!-- 手机端：进入分支后的返回条 -->
+      <div class="adm-back" v-if="tab">
+        <button @click="tab = ''">返回</button>
+        <b>{{ tabName }}</b>
       </div>
 
       <div class="adm-body">
@@ -217,11 +312,7 @@
                   <t-input v-model="uq" placeholder="搜索姓名、学号或学院" clearable style="width:200px">
                     <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
                   </t-input>
-                  <t-radio-group v-model="uRole" variant="default-filled">
-                    <t-radio-button value="all">全部角色</t-radio-button>
-                    <t-radio-button value="admin">管理员</t-radio-button>
-                    <t-radio-button value="student">学生</t-radio-button>
-                  </t-radio-group>
+                  <t-select v-model="uRole" :options="roleOptions" style="width:118px"></t-select>
                   <span class="sp"></span>
                   <t-select v-model="uStatus" :options="userStatusOptions" style="width:112px"></t-select>
                   <span class="tb-count">筛出 <b>{{ uFiltered.length }}</b> / {{ users.length }} 个账号</span>
@@ -724,7 +815,8 @@
         </div>
         <div class="fg">
           <label>所属课程</label>
-          <t-select v-model="resDraft.course_name" :options="resCoursePickOptions" placeholder="选课程"></t-select>
+          <t-select v-model="resDraft.course_name" :options="resCoursePickOptions" filterable
+                    placeholder="选课程"></t-select>
         </div>
         <div class="fg">
           <label>分类</label>
@@ -740,10 +832,12 @@
         </div>
         <div class="fg full">
           <label>授权范围</label>
-          <t-radio-group v-model="resDraft.license" variant="default-filled" style="width:100%">
-            <t-radio-button value="仅本校学习使用">仅本校学习使用</t-radio-button>
-            <t-radio-button value="允许校内分享">允许校内分享</t-radio-button>
-          </t-radio-group>
+          <div class="prio-pick">
+            <button :class="{ on: resDraft.license === '仅本校学习使用' }"
+                    @click="resDraft.license = '仅本校学习使用'">仅本校学习使用</button>
+            <button :class="{ on: resDraft.license === '允许校内分享' }"
+                    @click="resDraft.license = '允许校内分享'">允许校内分享</button>
+          </div>
         </div>
 
         <div class="form-tip full">
@@ -829,14 +923,15 @@
     data() {
       return {
         tabs: [
-          { k: 'users',  t: '用户管理', icon: 'user' },
-          { k: 'course', t: '课程目录', icon: 'cap' },
-          { k: 'res',    t: '资料管理', icon: 'book' },
-          { k: 'ann',    t: '公告发布', icon: 'bell' },
-          { k: 'config', t: '系统配置', icon: 'setting' },
-          { k: 'sync',   t: '同步状态', icon: 'clock' }
+          { k: 'users',  t: '用户管理', icon: 'user',    d: '账号、角色与停用' },
+          { k: 'course', t: '课程目录', icon: 'cap',     d: '课程与排课记录' },
+          { k: 'res',    t: '资料管理', icon: 'book',    d: '资料上传与上下架' },
+          { k: 'ann',    t: '公告发布', icon: 'bell',    d: '发公告、撤回与失效' },
+          { k: 'config', t: '系统配置', icon: 'setting', d: '学期基准与上传限制' },
+          { k: 'sync',   t: '同步状态', icon: 'clock',   d: '教务同步（只读）' }
         ],
-        tab: 'users',
+        /* 手机上先进父级列表，桌面直接落在用户管理 */
+        tab: window.innerWidth <= 768 ? '' : 'users',
 
         selfId: 1,
         selfName: '',
@@ -879,6 +974,19 @@
     },
 
     computed: {
+      tabName() {
+        const t = this.tabs.find((x) => x.k === this.tab);
+        return t ? t.t : '系统管理';
+      },
+
+      roleOptions() {
+        return [
+          { label: '全部角色', value: 'all' },
+          { label: '管理员', value: 'admin' },
+          { label: '学生', value: 'student' }
+        ];
+      },
+
       headLine() {
         const activeRes = this.resources.filter(function (r) { return r.status !== 'off'; }).length;
         const totalKb = this.resources.reduce(function (n, r) { return n + (r.size || 0); }, 0);
@@ -1370,8 +1478,8 @@
     mounted() {
       document.title = '系统管理 · ' + C.brand.name;
 
-      /* 当前登录人按演示账号的学号对上，别把「自己」写死成 id */
-      const me = this.users.find(function (u) { return u.student_id === C.demoUser.studentId; });
+      /* 当前登录人按登录者的学号对上，别把「自己」写死成 id */
+      const me = this.users.find(function (u) { return u.student_id === window.AppUser.current().studentId; });
       if (me) {
         this.selfId = me.id;
         this.selfName = me.name;
@@ -1381,6 +1489,23 @@
       const t = qs.get('tab');
       if (t && this.tabs.some(function (x) { return x.k === t; })) this.tab = t;
       if (location.search) history.replaceState(null, '', location.pathname);
+
+      /* 窗口跨过 768 时重置一次：宽屏回到默认分支，窄屏回到父列表。
+         不加这段，桌面拉到手机宽度会直接停在「用户管理」，
+         看不到该有的六个父条目。只在跨档时触发，拖窗口不会反复重置。 */
+      const self = this;
+      this._narrow = window.innerWidth <= 768;
+      this._onResize = function () {
+        const narrow = window.innerWidth <= 768;
+        if (narrow === self._narrow) return;
+        self._narrow = narrow;
+        self.tab = narrow ? '' : 'users';
+      };
+      window.addEventListener('resize', this._onResize);
+    },
+
+    beforeUnmount() {
+      if (this._onResize) window.removeEventListener('resize', this._onResize);
     }
   });
 })();

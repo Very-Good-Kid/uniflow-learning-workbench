@@ -16,7 +16,7 @@ window.APP_CONFIG = {
     school: '重庆邮电大学'
   },
 
-  version: 'v0.9 · 原型',
+  version: 'v0.9',
 
   /* ---------- 一级导航 ----------
      href 为空的表示该页原型尚未交付，点击给提示

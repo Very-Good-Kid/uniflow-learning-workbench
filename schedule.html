@@ -41,9 +41,12 @@
     <div class="conflict-bar" v-if="conflicts.length">
       <app-icon name="warning" :size="17" style="color:var(--red)"></app-icon>
       <div class="cf-txt">
-        <b>本周有 {{ conflicts.length }} 处时间冲突</b>
-        <span>：{{ conflicts[0].text }}</span>
-        <span v-if="conflicts.length > 1"> 等</span>
+        <div class="cf-track" :class="{ run: cfOverflow }"
+             :style="{ '--cf-shift': cfShift + 'px', '--cf-dur': cfDur + 's' }">
+          <b>本周有 {{ conflicts.length }} 处时间冲突</b>
+          <span class="cf-idx" v-if="conflicts.length > 1">{{ cfIdx + 1 }}/{{ conflicts.length }}</span>
+          <span>：{{ (conflicts[cfIdx] || conflicts[0]).text }}</span>
+        </div>
       </div>
       <t-button variant="text" theme="danger" size="small" @click="fixConflict">去处理</t-button>
     </div>
@@ -60,7 +63,7 @@
         </t-button>
       </div>
 
-      <div class="tt">
+      <div class="tt" :class="{ 'cols-7': isMobile && showWeekend }">
         <!-- 表头 -->
         <div class="tt-head" :style="{ gridTemplateColumns: colTemplate }">
           <div class="tt-corner">时间</div>
@@ -92,7 +95,7 @@
                  @click.stop="openBlock(b)">
               <div class="bt">{{ b.title }}</div>
               <div class="bs">{{ b.sub }}</div>
-              <span class="cf-tag" v-if="b.conflict && b.h >= 44">冲突</span>
+              <span class="cf-tag" v-if="b.conflict && b.h >= 44">{{ isMobile ? b.overlap : '冲突' }}</span>
             </div>
           </div>
         </div>
@@ -107,13 +110,19 @@
             <span v-else-if="isCurrentWeek">今天没有更多安排了</span>
             <span v-else>切回本周可以看今天安排</span>
           </div>
-          <div class="demo">{{ termName }} · 第 {{ week }} 周 · 演示数据</div>
+          <div class="demo">{{ termName }} · 第 {{ week }} 周</div>
         </div>
       </div>
     </div>
 
     <!-- ================= 详情弹窗 ================= -->
     <t-dialog v-model:visible="detailVisible" :header="detail.header" :footer="false" width="440px">
+      <!-- 冲突块右上角只有数字角标，这里给出同组切换，别让人只看得到一条 -->
+      <div class="cf-peer" v-if="peerBlocks.length > 1">
+        <button :disabled="peerIndex <= 0" @click="switchPeer(-1)">‹ 上一项</button>
+        <span>冲突项 {{ peerIndex + 1 }} / {{ peerBlocks.length }}</span>
+        <button :disabled="peerIndex >= peerBlocks.length - 1" @click="switchPeer(1)">下一项 ›</button>
+      </div>
       <dl class="dlg-meta">
         <template v-for="row in detail.rows" :key="row[0]">
           <dt>{{ row[0] }}</dt>
@@ -243,7 +252,10 @@
         termName: C.term.name,
         week: 12,
         todayIso: M.today,
-        showWeekend: true,
+        /* 手机默认铺五个工作日，桌面保持全周 */
+        showWeekend: window.innerWidth > 768,
+        /* 窄屏分支靠 vw 驱动：computed 不会自己响应窗口变化，resize 时更新 */
+        vw: window.innerWidth,
 
         courses: M.courses,
         tasks: M.tasks,
@@ -267,12 +279,21 @@
         deleteText: '',
 
         /* 从顶栏搜索跳过来时，把命中的那块描出来，2.4 秒后自动消失 */
-        hitUid: ''
+        hitUid: '',
+        /* 多处冲突时提示条一行轮播，别把周网格顶下去 */
+        cfIdx: 0,
+        /* 单条文案超长时横向滚动，保证整句能看完 */
+        cfOverflow: false,
+        cfShift: 0,
+        cfDur: 16
       };
     },
 
     computed: {
-      /* 每小时像素高度随视口自适应，保证 07:00–23:00 一屏放得下 */
+      isMobile() { return this.vw <= 768; },
+
+      /* 每小时像素高度：桌面随视口自适应，一屏放得下 07:00–23:00；
+         手机固定 60px，16 小时共 960px，靠纵向滚动看 */
       ppm() { return this.hourH / 60 },
       bodyH() { return this.hourH * ((DAY_END - DAY_START) / 60) },
       nowTop() { return (NOW_MIN - DAY_START) * this.ppm },
@@ -303,6 +324,12 @@
       },
 
       colTemplate() {
+        /* 手机：40px 时间轴 + 等宽日期列，5 天或 7 天都铺满，不横滑。
+           内联 :style 绑定，CSS 断点盖不住，只能在这里分叉。 */
+        if (this.isMobile) {
+          const n = this.showWeekend ? 7 : 5;
+          return '40px repeat(' + n + ', minmax(0, 1fr))';
+        }
         return this.showWeekend
           ? '62px repeat(5, 1.15fr) repeat(2, 0.8fr)'
           : '62px repeat(5, 1fr)';
@@ -314,7 +341,9 @@
 
       timeLabels() {
         const out = [];
-        for (let h = 7; h <= 23; h += 2) {
+        /* 手机每小时一个刻度：块变高了，刻度密一点更好对时间 */
+        const step = this.isMobile ? 1 : 2;
+        for (let h = 7; h <= 23; h += step) {
           const top = (h * 60 - DAY_START) * this.ppm;
           let style;
           if (h === 7) style = { top: '2px', transform: 'none' };
@@ -397,12 +426,16 @@
         Object.keys(map).forEach(function (date) {
           const list = map[date].sort(function (a, b) { return a.s - b.s || a.e - b.e; });
 
-          /* 冲突：非候选块之间时间重叠 */
+          /* 冲突：非候选块之间时间重叠；顺手记下重叠数给手机角标用 */
           list.forEach(function (a) {
+            a.overlap = 1;
             list.forEach(function (b) {
               if (a === b) return;
               if (a.kind === 'proposed' || b.kind === 'proposed') return;
-              if (a.s < b.e && b.s < a.e) a.conflict = true;
+              if (a.s < b.e && b.s < a.e) {
+                a.conflict = true;
+                a.overlap += 1;
+              }
             });
           });
 
@@ -428,6 +461,12 @@
           });
           flush();
 
+          /* 手机上不做并排分栏：48px 的列再切两半就什么都看不见了。
+             冲突改由右上角数字角标指示，点开详情切换。 */
+          if (self.isMobile) {
+            list.forEach(function (b) { b.lane = 0; b.lanes = 1; });
+          }
+
           list.forEach(function (b) {
             const h = Math.max(16, (b.e - b.s) * self.ppm - 3);
             b.h = h;
@@ -441,6 +480,29 @@
         });
 
         return map;
+      },
+
+      /* 详情里同组冲突项：同一天、时间重叠、非候选的全部块。
+         块本身不带 date，从 laidOut 反查它落在哪一天。 */
+      peerBlocks() {
+        const b = this.detailTarget;
+        if (!b || !b.conflict) return [];
+        const map = this.laidOut;
+        let list = [];
+        Object.keys(map).some(function (date) {
+          if (map[date].some(function (x) { return x.uid === b.uid; })) {
+            list = map[date];
+            return true;
+          }
+          return false;
+        });
+        return list.filter(function (x) {
+          return x.kind !== 'proposed' && x.s < b.e && b.s < x.e;
+        });
+      },
+      peerIndex() {
+        if (!this.detailTarget) return -1;
+        return this.peerBlocks.findIndex((x) => x.uid === this.detailTarget.uid);
       },
 
       conflicts() {
@@ -524,6 +586,12 @@
 
     methods: {
       fitGrid() {
+        /* 手机放开纵向滚动：固定 60px/小时，不读 clientHeight，
+           否则 ResizeObserver 会把 16 小时重新压回一屏 */
+        if (this.isMobile) {
+          if (this.hourH !== 60) this.hourH = 60;
+          return;
+        }
         const el = this.$refs.scroll;
         if (!el) return;
         const h = el.clientHeight;
@@ -606,8 +674,29 @@
         }
       },
 
+      /* 提示条文字超出宽度才跑，短文案保持静止 */
+      measureCf() {
+        const box = document.querySelector('.conflict-bar .cf-txt');
+        const track = document.querySelector('.cf-track');
+        if (!box || !track) return;
+        const over = track.scrollWidth - box.clientWidth;
+        if (over > 4) {
+          this.cfShift = -over;
+          this.cfDur = Math.max(9, Math.round(over / 32));
+          this.cfOverflow = true;
+        } else {
+          this.cfOverflow = false;
+          this.cfShift = 0;
+        }
+      },
+
+      switchPeer(dir) {
+        const b = this.peerBlocks[this.peerIndex + dir];
+        if (b) this.openBlock(b);
+      },
+
       fixConflict() {
-        const c = this.conflicts[0];
+        const c = this.conflicts[this.cfIdx] || this.conflicts[0];
         if (!c) return;
         this.detailVisible = true;
         this.detailTarget = null;
@@ -915,8 +1004,46 @@
         if (el && window.ResizeObserver) {
           new ResizeObserver(function () { self.fitGrid(); }).observe(el);
         }
-        window.addEventListener('resize', function () { self.fitGrid(); });
+        /* 窗口跨过 768 时回到该档默认：手机只看工作日，桌面看全周。
+           列数变了要等 DOM 更新再量宽度，否则 fitGrid 取的是旧列宽。 */
+        self._narrow = window.innerWidth <= 768;
+        window.addEventListener('resize', function () {
+          self.vw = window.innerWidth;
+          const narrow = window.innerWidth <= 768;
+          if (narrow !== self._narrow) {
+            self._narrow = narrow;
+            self.showWeekend = !narrow;
+            self.$nextTick(function () {
+              self.fitGrid();
+              self.measureCf();
+            });
+            return;
+          }
+          self.fitGrid();
+          self.measureCf();
+        });
       });
+
+      /* 多处冲突时一行轮播，单处静止。切换只改索引，不重排数据。 */
+      this._cfTimer = setInterval(function () {
+        const n = self.conflicts.length;
+        if (n > 1) self.cfIdx = (self.cfIdx + 1) % n;
+      }, 4500);
+
+      setTimeout(function () { self.measureCf(); }, 60);
+    },
+
+    watch: {
+      /* 换到另一处冲突时重新量宽度，动画从头开始 */
+      cfIdx() {
+        const self = this;
+        this.cfOverflow = false;
+        this.$nextTick(function () { self.measureCf(); });
+      }
+    },
+
+    beforeUnmount() {
+      if (this._cfTimer) clearInterval(this._cfTimer);
     }
   });
 })();

@@ -11,10 +11,10 @@
 
 <!-- 注意：in-DOM 模板里自定义标签必须显式闭合，不能写成 <app-icon /> -->
 <div id="app">
-  <app-shell active="home">
+  <app-shell active="home" class="page-home">
 
     <!-- ================= 页头：问候 + 日期 ================= -->
-    <div class="page-head">
+    <div class="page-head home-page-head">
       <div>
         <h1>{{ greeting }}，{{ userName }}</h1>
         <p>{{ headLine }}</p>
@@ -24,13 +24,13 @@
           <b>{{ dateText }}</b>
           <span>第 {{ week }} 周</span>
         </div>
-        <t-button theme="primary" @click="go('tasks.html?new=1')">添加任务</t-button>
+        <t-button theme="primary" @click="openQuick">添加任务</t-button>
       </div>
     </div>
 
     <!-- ================= 学习概况：三格 ================= -->
     <div class="stat-row">
-      <div class="stat-card" @click="go('tasks.html')">
+      <div class="stat-card" @click="go('tasks.html?scope=todo')">
         <div class="st-ico teal"><app-icon name="list" :size="20"></app-icon></div>
         <div class="st-body">
           <div class="st-label">待完成任务</div>
@@ -40,7 +40,7 @@
         <span class="st-go"><app-icon name="chev-right" :size="16"></app-icon></span>
       </div>
 
-      <div class="stat-card" @click="go('schedule.html')">
+      <div class="stat-card" @click="go('schedule.html?date=' + todayIso)">
         <div class="st-ico navy"><app-icon name="calendar" :size="20"></app-icon></div>
         <div class="st-body">
           <div class="st-label">今日安排</div>
@@ -50,7 +50,7 @@
         <span class="st-go"><app-icon name="chev-right" :size="16"></app-icon></span>
       </div>
 
-      <div class="stat-card" @click="go('tasks.html')">
+      <div class="stat-card" @click="go('tasks.html?scope=soon')">
         <div class="st-ico orange"><app-icon name="clock" :size="20"></app-icon></div>
         <div class="st-body">
           <div class="st-label">即将截止</div>
@@ -70,7 +70,7 @@
           <span class="hd-ico"><app-icon name="list" :size="16"></app-icon></span>
           <h2>待办任务</h2>
           <div class="hd-act">
-            <a class="link" @click="go('tasks.html')">查看全部<app-icon name="arrow-right" :size="13"></app-icon></a>
+            <a class="link" @click="goTasks(tab)">查看全部<app-icon name="arrow-right" :size="13"></app-icon></a>
           </div>
         </div>
 
@@ -85,7 +85,7 @@
             <div class="em-ico"><app-icon name="check" :size="24"></app-icon></div>
             <p>{{ tab === 'all' ? '手上的任务都清完了。' : '这个分类下没有待办。' }}</p>
             <div class="em-act">
-              <t-button variant="outline" size="small" @click="go('tasks.html?new=1')">添加一个</t-button>
+              <t-button variant="outline" size="small" @click="openQuick">添加一个</t-button>
             </div>
           </div>
 
@@ -111,7 +111,7 @@
           <span class="hd-ico"><app-icon name="calendar" :size="16"></app-icon></span>
           <h2>今日日程</h2>
           <div class="hd-act">
-            <a class="link" @click="go('schedule.html')">查看完整日程<app-icon name="arrow-right" :size="13"></app-icon></a>
+            <a class="link" @click="go('schedule.html?date=' + todayIso)">查看完整日程<app-icon name="arrow-right" :size="13"></app-icon></a>
           </div>
         </div>
 
@@ -120,7 +120,7 @@
             <div class="em-ico"><app-icon name="calendar" :size="22"></app-icon></div>
             <p>今天没有排任何事。</p>
             <div class="em-act">
-              <t-button variant="outline" size="small" @click="go('schedule.html')">去课程表安排</t-button>
+              <t-button variant="outline" size="small" @click="go('schedule.html?date=' + todayIso)">去课程表安排</t-button>
             </div>
           </div>
 
@@ -129,10 +129,9 @@
                  :class="{ 'is-done': it.st === 'done', 'is-now': it.st === 'now' }"
                  @click="openItem(it)">
               <span class="tl-dot"><i :class="it.kind"></i></span>
-              <span class="tl-time">{{ it.sText }} – {{ it.eText }}</span>
               <div class="tl-body">
                 <div class="tl-title">{{ it.title }}</div>
-                <div class="tl-meta">{{ it.meta }}</div>
+                <div class="tl-meta">{{ it.sText }}–{{ it.eText }} · {{ it.meta }}</div>
               </div>
               <span class="tag" :class="'k-' + it.kind">{{ kindText(it.kind) }}</span>
             </div>
@@ -168,6 +167,52 @@
         </template>
       </dl>
       <div class="dlg-note" v-if="detail.note">{{ detail.note }}</div>
+    </t-dialog>
+
+    <!-- ================= 工作台内快速新建 =================
+         不再跳到任务页。字段按 tasks.html 的 payload 口径组装，
+         写回同一个 Store，所以任务页、统计数字、AI 排期都能读到。 -->
+    <t-dialog v-model:visible="quickVisible" width="560px" :footer="false" header="新建任务">
+      <div class="dlg-form">
+        <div class="fg full">
+          <label>标题</label>
+          <t-input v-model="quick.title" placeholder="例如：数据结构实验报告"></t-input>
+        </div>
+        <div class="fg">
+          <label>课程</label>
+          <t-select v-model="quick.course_name" :options="courseQuickOptions" filterable
+                    placeholder="不关联课程"></t-select>
+        </div>
+        <div class="fg">
+          <label>类型</label>
+          <t-select v-model="quick.source_type" :options="typeQuickOptions"></t-select>
+        </div>
+        <div class="fg">
+          <label>截止日期</label>
+          <t-date-picker v-model="quick.date" format="YYYY-MM-DD" value-type="YYYY-MM-DD"
+                         placeholder="留空表示没有截止" style="width:100%" clearable></t-date-picker>
+        </div>
+        <div class="fg">
+          <label>截止时间</label>
+          <t-time-picker v-model="quick.due" format="HH:mm" value-type="HH:mm"
+                         placeholder="先选日期" style="width:100%" :disabled="!quick.date"></t-time-picker>
+        </div>
+        <div class="fg full">
+          <label>优先级</label>
+          <div class="prio-pick">
+            <button :class="{ on: quick.priority === 2 }" @click="quick.priority = 2"><i class="pp p-low"></i>低</button>
+            <button :class="{ on: quick.priority === 3 }" @click="quick.priority = 3"><i class="pp p-mid"></i>中</button>
+            <button :class="{ on: quick.priority === 5 }" @click="quick.priority = 5"><i class="pp p-high"></i>高</button>
+          </div>
+        </div>
+        <div class="fg full" style="font-size:11.5px;color:var(--ink-3);line-height:1.6">
+          保存后立刻出现在下面的待办列表里，也能被 AI 排进计划。
+        </div>
+        <div class="dlg-acts full">
+          <t-button variant="outline" @click="quickVisible = false">取消</t-button>
+          <t-button theme="primary" @click="saveQuick">保存任务</t-button>
+        </div>
+      </div>
     </t-dialog>
 
   </app-shell>
@@ -212,12 +257,14 @@
         tabs: TABS,
         tab: 'all',
         detailVisible: false,
-        detail: { header: '', rows: [], note: '' }
+        detail: { header: '', rows: [], note: '' },
+        quickVisible: false,
+        quick: { title: '', course_name: '', source_type: 'assignment', date: '', due: '23:59', priority: 3 }
       };
     },
 
     computed: {
-      userName() { return C.demoUser.name; },
+      userName() { return window.AppUser.current().name; },
 
       greeting() {
         const h = Math.floor(NOW / 60);
@@ -365,11 +412,68 @@
         return this.sessions.filter(function (s) { return s.status === 'proposed'; }).length;
       },
 
-      hasPending() { return this.pendingCount > 0 && !!this.pendingTitle; }
+      hasPending() { return this.pendingCount > 0 && !!this.pendingTitle; },
+
+      courseQuickOptions() {
+        const seen = {};
+        const out = [{ label: '不关联课程', value: '' }];
+        this.courses.forEach(function (c) {
+          if (seen[c.name]) return;
+          seen[c.name] = 1;
+          out.push({ label: c.name, value: c.name });
+        });
+        return out;
+      },
+
+      typeQuickOptions() {
+        return Object.keys(TYPE_TEXT).map(function (k) {
+          return { label: TYPE_TEXT[k], value: k };
+        });
+      }
     },
 
     methods: {
       go(href) { location.href = href; },
+
+      /* 工作台入口一律带落地筛选，别让人落到「全部任务」再自己找 */
+      goTasks(tab) {
+        const src = tab === 'school' ? '&src=school' : (tab === 'mine' ? '&src=mine' : '');
+        this.go('tasks.html?scope=todo' + src);
+      },
+
+      openQuick() {
+        this.quick = {
+          title: '', course_name: '', source_type: 'assignment',
+          date: '', due: '23:59', priority: 3
+        };
+        this.quickVisible = true;
+      },
+
+      saveQuick() {
+        const q = this.quick;
+        if (!q.title || !q.title.trim()) {
+          TDesign.MessagePlugin.warning('先给任务起个名字');
+          return;
+        }
+        /* 字段口径和 tasks.html 的 saveTask 一致，写回同一个 Store */
+        const payload = {
+          title: q.title.trim(),
+          course_name: q.course_name || '',
+          source_type: q.source_type,
+          date: q.date || null,
+          due: q.date ? (q.due || '23:59') : null,
+          estimated_minutes: null,
+          estimate_source: null,
+          priority: Number(q.priority),
+          description: '',
+          status: 'pending',
+          source: 'manual'
+        };
+        window.Store.add(payload);
+        this.tasks = window.Store.tasks();
+        this.quickVisible = false;
+        TDesign.MessagePlugin.success('已添加：' + payload.title);
+      },
 
       kindText(k) { return KIND_TEXT[k] || k; },
 

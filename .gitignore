@@ -1,0 +1,9 @@
+# 系统与编辑器垃圾，不进版本库
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+
+# 验收截图 / 临时文件
+_screenshots/
+*.tmp

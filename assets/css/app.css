@@ -1539,6 +1539,52 @@ body {
 .home-grid > .card { min-height: 0; }
 .home-grid > .card > .card-bd { flex: 0 0 auto; min-height: 0; }
 
+/* ---------- 桌面：首页一屏看完 ----------
+   页头 / 三格 / AI 入口固定，两张卡吃掉剩余高度并等高，
+   列表放不下就在卡片里滚，整页不再上下滑。
+   移动端有一整套自己的规则（≤768），这里只管桌面。 */
+@media (min-width: 769px) {
+  .page-home .content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 14px;
+  }
+  .page-home .page-head,
+  .page-home .stat-row,
+  .page-home .ai-bar { flex: 0 0 auto; }
+
+  .page-home .home-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    /* 原来是 align-items: start，两卡各随内容高低，差出一百多像素；
+       stretch 让两卡等高，同时都吃满剩余高度 */
+    align-items: stretch;
+    padding-bottom: 0;
+    margin-bottom: 12px;
+  }
+  .page-home .home-grid > .card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .page-home .home-grid > .card > .card-hd { flex: 0 0 auto; }
+  .page-home .home-grid > .card > .card-bd {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* 窗口太矮时卡片会被压到只剩两三条，宁可整页滚回去 */
+@media (min-width: 769px) and (max-height: 640px) {
+  .page-home .content { overflow-y: auto; }
+  .page-home .home-grid { flex: 0 0 auto; align-items: start; }
+  .page-home .home-grid > .card { min-height: 0; }
+  .page-home .home-grid > .card > .card-bd { overflow: visible; }
+}
+
 /* 待办任务的分类切换：轻量胶囊，不做重 tab */
 .tk-tabs {
   display: flex;
@@ -2787,6 +2833,12 @@ table.tasks {
 .lib-courses::-webkit-scrollbar-thumb { background: #DCE1E5; border-radius: 3px; }
 .lib-courses::-webkit-scrollbar-track { background: transparent; }
 
+/* 鼠标也能拖：浏览器原生只认触摸板和触摸，缩窄窗口预览时拖不动。
+   注意**不要**在拖动时给卡片加 pointer-events:none —— pointerdown 一拍
+   就设上，pointerup 之后的 click 会派发不到按钮，筛选直接失灵。 */
+.lib-courses { cursor: grab; user-select: none; }
+.lib-courses.dragging { cursor: grabbing; }
+
 .lib-course {
   flex: 0 0 auto;
   min-width: 108px;
@@ -3169,6 +3221,10 @@ table.tasks {
 }
 
 /* ---------- 左：消息列表 ---------- */
+/* 手机上这层要变成单行横滑的 chip 带；桌面用 contents 让按钮
+   继续直接参与 .tb-line 的 flex，1440 下的工具条一行不动。 */
+.nt-chips { display: contents; }
+
 .msg-list {
   flex: 0 0 396px;
   min-width: 0;
@@ -3599,6 +3655,1232 @@ table.tasks {
 }
 
 /* ============================================================
+   移动端适配（≤768px）
+   ------------------------------------------------------------
+   独立分节，桌面规则一行不动。新增的手机 DOM 在桌面默认隐藏，
+   只有媒体查询命中时才显示，不污染 1440×900 的定高布局。
+   外壳：侧边栏收成底部五栏，顶栏换短标题 + 图标组。
+   日程：WakeUp 式紧凑周网格的壳 + 7:00–23:00 真实钟点的轴，
+        纵向滚动 60px/小时，列宽随天数自适应，不做横滑。
+   ============================================================ */
+
+.mb-brand,
+.mb-right,
+.mb-tabbar,
+.mb-search-close,
+.mb-plan-tabs,
+.mb-task-bar,
+.mb-kpi,
+.dw-back,
+.mb-filter-btn,
+.mb-filter-mask,
+.mb-filter-sheet,
+.mb-read-back { display: none; }
+
+@media (max-width: 768px) {
+  :root {
+    --topbar-h: 52px;
+    --mb-tab-h: 58px;
+  }
+
+  html, body { overflow: hidden; }
+
+  .shell {
+    height: 100vh;
+    height: 100dvh;
+    flex-direction: column;
+  }
+
+  .sidebar { display: none; }
+
+  .main { flex: 1 1 auto; min-height: 0; }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar { padding: 0 8px; gap: 6px; }
+
+  .tb-right,
+  .topbar > .search { display: none; }
+
+  .mb-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .mb-mark {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 8px;
+    background: var(--brand-7);
+    color: #fff;
+    display: grid;
+    place-items: center;
+  }
+
+  .mb-title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mb-right {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+
+  .mb-ico {
+    width: 40px;
+    height: 44px;
+    min-width: 40px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--ink-2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+
+  .mb-ico:active { background: var(--brand-1); }
+
+  /* ---------- 全屏搜索层：复用 AppSearchBox，不另写一套逻辑 ---------- */
+  .mb-search-close {
+    display: block;
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1300;
+    height: 56px;
+    padding: 0 14px;
+    border: 0;
+    background: #fff;
+    color: var(--brand-7);
+    font-size: 14px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  /* 手机搜索是独立一层，单独挂一份 AppSearchBox。
+     不去覆盖桌面那个 .search 的定位，两套互不干扰。 */
+  .mb-search-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: var(--bg);
+  }
+
+  .mb-search-layer .search {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+  }
+
+  .mb-search-layer .search input {
+    height: 56px;
+    padding: 0 76px 0 42px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+    font-size: 15px;
+  }
+
+  .mb-search-layer .search .s-ico { top: 20px; left: 13px; z-index: 2; }
+  .mb-search-layer .search .s-kbd { display: none; }
+  .mb-search-layer .search .s-clear { top: 17px; right: 66px; z-index: 2; }
+
+  .mb-search-layer .srch-panel {
+    top: 56px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--surface);
+  }
+
+  /* ---------- 内容区 ---------- */
+  .content {
+    padding: 12px 12px 16px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* ---------- 底部五栏 ---------- */
+  .mb-tabbar {
+    display: flex;
+    flex: 0 0 auto;
+    height: calc(var(--mb-tab-h) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+    z-index: 40;
+  }
+
+  .mb-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: var(--ink-3);
+    font-size: 10.5px;
+    line-height: 1.2;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .mb-tab.active { color: var(--brand-7); }
+
+  /* 选中态已有文字与图标变色，顶部那道绿色短横是重复信号，删掉 */
+
+  /* ---------- 通用：标题、卡片、弹层 ---------- */
+  .page-head { margin-bottom: 10px; gap: 8px; }
+  .page-head h1 { font-size: 19px; }
+  .page-head p { font-size: 12px; line-height: 1.5; }
+
+  .card { border-radius: 10px; }
+  .card-hd { padding: 0 12px; height: 42px; }
+
+  .t-button { min-height: 40px; }
+  .icon-btn { width: 40px; height: 40px; }
+
+  /* TDesign 的 .t-dialog__position 用固定 padding 把弹窗往下推，弹窗一长
+     就顶出屏幕（395×647 上 top 会变成 129、底部超出 100px）。
+     改成 flex + margin auto：这是「安全居中」，放得下就居中，
+     放不下就贴边，永远不会上下溢出。 */
+  .t-dialog__position {
+    display: flex;
+    min-height: 100%;
+    padding: 12px 0 !important;
+    box-sizing: border-box;
+  }
+  .t-dialog {
+    width: calc(100vw - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    margin: auto !important;
+    /* 高度封顶：头尾固定、中间内容滚 */
+    max-height: calc(100dvh - 24px);
+    display: flex;
+    flex-direction: column;
+  }
+  .t-dialog__header,
+  .t-dialog__footer { flex: 0 0 auto; }
+  .t-dialog__body { padding: 12px 16px; }
+  .t-drawer,
+  .t-drawer__content-wrapper {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+  .t-select__list { max-width: calc(100vw - 24px); }
+  .form-row { flex-direction: column; align-items: stretch; gap: 5px; }
+  .form-row > label { width: auto; flex: 0 0 auto; }
+
+  /* ---------- 首页 ---------- */
+  /* 三格概览改成横滑卡带：390px 塞三列每列只剩 118px，数字和说明都读不了 */
+  .stat-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+    padding-bottom: 4px;
+    margin-bottom: 10px;
+  }
+  .stat-row::-webkit-scrollbar { height: 0; }
+  .stat-card {
+    /* 168px：既放得下「2 项还没结束」这类说明，又能露出第三张卡约 20px 边缘 */
+    flex: 0 0 168px;
+    scroll-snap-align: start;
+    padding: 12px;
+    gap: 10px;
+  }
+  .st-ico { width: 36px; height: 36px; flex-basis: 36px; border-radius: 10px; }
+  .st-val { font-size: 22px; }
+  .st-sub { white-space: normal; line-height: 1.35; }
+
+  .home-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    padding-bottom: 10px;
+  }
+  .tk-row { padding: 0 12px; }
+  .tl-row { padding: 0 12px; }
+  .tk-tabs { padding: 0 8px; overflow-x: auto; }
+
+  .ai-bar { padding: 12px; gap: 10px; margin-bottom: 4px; }
+  .ai-orb { width: 38px; height: 38px; flex-basis: 38px; }
+  .ai-bar-txt p { font-size: 12px; }
+
+  /* ---------- 日程：紧凑周网格 + 纵向滚动 ---------- */
+  .conflict-bar { padding: 8px 10px; font-size: 12px; }
+  .ph-right { width: 100%; gap: 8px; flex-wrap: wrap; }
+  .ph-right > .t-select { width: 100% !important; }
+  .week-nav { flex: 1 1 auto; justify-content: space-between; }
+
+  .grid-card { min-height: 0; flex: 1 1 auto; }
+  .grid-toolbar { padding: 6px 10px; gap: 8px; }
+  .grid-toolbar .t-button { min-height: 36px; }
+
+  .tt { --tw: 40px; }
+  .tt-scroll { overflow-y: auto; overflow-x: hidden; }
+  .tt-corner { height: 38px; font-size: 10px; }
+  .tt-day { height: 38px; }
+  .tt-day .dw { font-size: 11px; }
+  .tt-day .dd { font-size: 9.5px; }
+  .tt-tlabel { right: 4px; font-size: 10px; }
+
+  .blk { padding: 4px 3px 4px 7px; border-radius: 4px; }
+  .blk .bt { font-size: 11px; line-height: 1.3; -webkit-line-clamp: 4; }
+  /* 地点不能 break-all：67px 窄列里「教1-201」会被逐字断成竖排，
+     读起来像乱码。宁可截断加省略号。 */
+  .blk .bs { font-size: 10px; white-space: nowrap; word-break: normal; }
+  .blk.course,
+  .blk.proposed { padding-left: 4px; }
+  .blk.conflict { padding-bottom: 4px; }
+
+  /* 全周七列每列只有 48px：地点收进点开的详情（详情里本来就有），
+     格子只留标题。两样一起折成单字竖排，反而什么都读不出来。 */
+  .tt.cols-7 .blk .bs { display: none; }
+  .tt.cols-7 .blk .bt { font-size: 10.5px; -webkit-line-clamp: 5; }
+
+  /* 冲突从文字标签改成右上角数字角标：48px 窄列放不下「冲突」两个字，
+     也放不下并排分栏，点开详情再看具体是哪几项 */
+  .blk .cf-tag {
+    top: 2px;
+    right: 2px;
+    bottom: auto;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .tt-foot { padding: 6px 10px; font-size: 11px; }
+  .tt-foot .demo { display: none; }
+}
+
+/* ============================================================
+   移动端适配 · 第二、三批：任务 / 资料 / 通知 / AI 规划
+   ------------------------------------------------------------
+   宽表 → 卡片；任务筛选收进底部抽屉、只留一行搜索；
+   通知改成「筛选即列表头 + 点消息整屏详情」；
+   AI 规划改对话 / 候选计划双视图，输入框贴底。
+   桌面规则一行不动。
+   ============================================================ */
+@media (max-width: 768px) {
+
+  /* ---------- 宽表 → 卡片列表 ----------
+     table.tasks 是 table-layout:fixed 的九列宽表，硬压到 390px
+     会把「作业」「平台同步」挤成重叠的单字竖排，看着像乱码。
+     这里把每行转成一张卡，只留必要字段，其余进详情抽屉。 */
+  .tbl-card { min-height: 0; }
+  .tbl-scroll { overflow-y: auto; overflow-x: hidden; }
+
+  .tbl-scroll table.tasks {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    table-layout: auto;
+  }
+  .tbl-scroll table.tasks colgroup,
+  .tbl-scroll table.tasks thead { display: none; }
+  .tbl-scroll table.tasks tbody { display: block; }
+
+  .tbl-scroll table.tasks tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line-2);
+    min-height: 62px;
+  }
+  .tbl-scroll table.tasks td {
+    display: block;
+    width: auto;
+    height: auto;
+    padding: 0;
+    border: 0;
+    vertical-align: top;
+  }
+  /* 选中 / 已完成的底色交给整行，别让每个格子各自带一块浅底 */
+  .tbl-scroll table.tasks tr.row-done td,
+  .tbl-scroll table.tasks tr.sel td { background: transparent; }
+  .tbl-scroll table.tasks tr.sel { background: var(--brand-1); }
+  .tbl-scroll table.tasks tr.row-done { background: #FCFDFD; }
+
+  /* 任务表：复选框 + 标题一行，截止 + 状态一行 */
+  table.tasks:not(.lib-tbl) td:nth-child(1) { flex: 0 0 22px; }
+  table.tasks:not(.lib-tbl) td:nth-child(2) {
+    flex: 1 1 calc(100% - 36px);
+    min-width: 0;
+  }
+  table.tasks:not(.lib-tbl) td:nth-child(3),
+  table.tasks:not(.lib-tbl) td:nth-child(4),
+  table.tasks:not(.lib-tbl) td:nth-child(6),
+  table.tasks:not(.lib-tbl) td:nth-child(7),
+  table.tasks:not(.lib-tbl) td:nth-child(9) { display: none; }
+  table.tasks:not(.lib-tbl) td:nth-child(5) { margin-left: 32px; }
+  table.tasks:not(.lib-tbl) td:nth-child(8) { margin-left: auto; }
+  table.tasks:not(.lib-tbl) .t-title { font-size: 13.5px; }
+  table.tasks:not(.lib-tbl) .due { font-size: 12px; }
+  /* 桌面表格里「明天 / 23:59」分两行，卡片里改成一行，
+     一屏能多放一条任务 */
+  table.tasks:not(.lib-tbl) .due em {
+    display: inline;
+    margin-left: 5px;
+    font-size: 11px;
+  }
+
+  /* 资料表：资料名 + 操作一行，课程 / 类型 / 大小 / 时间一行 */
+  table.tasks.lib-tbl td:nth-child(1) {
+    flex: 1 1 calc(100% - 76px);
+    min-width: 0;
+  }
+  table.tasks.lib-tbl td:nth-child(2),
+  table.tasks.lib-tbl td:nth-child(3),
+  table.tasks.lib-tbl td:nth-child(4),
+  table.tasks.lib-tbl td:nth-child(5) {
+    margin-left: 0;
+    font-size: 11.5px;
+    color: var(--ink-3);
+  }
+  table.tasks.lib-tbl td:nth-child(5) { margin-left: auto; }
+  table.tasks.lib-tbl td:nth-child(6) { display: none; }
+  table.tasks.lib-tbl .lib-name { gap: 8px; }
+  table.tasks.lib-tbl .t-title { font-size: 13.5px; }
+  table.tasks.lib-tbl .lib-sub { font-size: 11px; }
+
+  /* ---------- 四格概览：横滑卡带，别在手机上竖排四行 ---------- */
+  .summary {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x proximity;
+  }
+  .summary::-webkit-scrollbar { height: 0; }
+  .summary .sum-cell {
+    flex: 0 0 150px;
+    scroll-snap-align: start;
+    border-top: 0;
+  }
+  .summary .sum-cell + .sum-cell::before { display: none; }
+
+  /* ---------- 任务页：两行筛选收进底部抽屉 ----------
+     两行筛选 + 四格统计在 390px 下吃掉近半屏，只留一行搜索 + 筛选。 */
+  /* 两行筛选整个收掉，换一行专用工具条：搜索 + 筛选。
+     在原工具条里逐个隐藏元素会留 flex 换行和空行，白占 40px。 */
+  .tk-toolbar { display: none; }
+  .mb-task-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+  }
+  .mb-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+  .mb-bar-row .t-input {
+    flex: 1 1 auto;
+    width: auto !important;
+    min-width: 0;
+  }
+
+  .mb-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    height: 40px;
+    min-width: 74px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .mb-filter-btn > span {
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--brand-7);
+    color: #fff;
+    font-size: 10.5px;
+    line-height: 17px;
+    text-align: center;
+  }
+
+  .mb-filter-mask {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(16, 32, 28, .42);
+  }
+  .mb-filter-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1001;
+    max-height: 82vh;
+    background: var(--surface);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 36px rgba(18, 40, 34, .18);
+  }
+  .mb-sheet-hd {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 52px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--line-2);
+  }
+  .mb-sheet-hd::before {
+    content: '';
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 34px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+  .mb-sheet-hd b { font-size: 14px; font-weight: 500; }
+  .mb-sheet-reset {
+    height: 40px;
+    padding: 0 8px;
+    border: 0;
+    background: none;
+    color: var(--brand-7);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .mb-sheet-bd {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 4px 16px 12px;
+  }
+  .mb-f-group { padding: 10px 0; border-bottom: 1px solid var(--line-2); }
+  .mb-f-group:last-child { border-bottom: 0; }
+  .mb-f-label { margin-bottom: 7px; font-size: 12px; color: var(--ink-3); }
+  .mb-f-group .t-select { width: 100% !important; }
+  /* 来源四项摊开成 2×2：四个独立描边卡片，和下方的下拉框同一套语言。
+     选中态沿用全站 chip.on（浅绿底 + 主色浅描边 + 深绿字）。 */
+  .mb-src-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .mb-src {
+    height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    transition: background .12s, border-color .12s, color .12s;
+  }
+  .mb-src:active { background: var(--bg); }
+  .mb-src.on {
+    background: var(--brand-1);
+    border-color: var(--brand-4);
+    color: var(--brand-9);
+    font-weight: 500;
+  }
+
+  .mb-sheet-ft {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .mb-sheet-ft b { color: var(--brand-7); }
+
+  /* ---------- 通知：筛选与列表连成一张卡，详情整屏跳转 ----------
+     筛选条和「全部消息」原本是两块割裂的卡片；详情也不该只占 1/3。 */
+  .msg-wrap {
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+  .nt-toolbar {
+    margin-bottom: 0;
+    padding: 8px 10px;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 0;
+    box-shadow: none;
+  }
+  .nt-toolbar .tb-line { flex-wrap: wrap; gap: 6px; }
+  .nt-chips {
+    display: flex;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+    overflow: visible;
+  }
+  /* 四个筛选项等分，不再横滑把最后一项裁掉 */
+  .nt-toolbar .t-radio-group {
+    flex: 0 0 100%;
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    background: var(--line-2);
+    border-radius: 8px;
+    overflow: visible;
+  }
+  .nt-toolbar .t-radio-button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 4px !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    color: var(--ink-3);
+    font-size: 12px;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .nt-toolbar .t-radio-button[class*="t-is-checked"] {
+    background: var(--surface) !important;
+    color: var(--brand-9) !important;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(18, 40, 34, .06);
+  }
+  .nt-toolbar .chip { flex: 0 0 auto; }
+  .nt-toolbar .tb-sep,
+  .nt-toolbar .sp,
+  .nt-toolbar .tb-count,
+  .nt-toolbar .t-input { display: none; }
+
+  .msg-list {
+    flex: 1 1 auto;
+    width: 100%;
+    max-height: none;
+    min-height: 0;
+    border-radius: 0 0 10px 10px;
+    border-top: 1px solid var(--line-2);
+  }
+  /* 列表头这层「全部消息」去掉：tab 上的「全部 14」已经是标题，
+     再夹一层标题反而把筛选和列表分成两张卡 */
+  .msg-list .card-hd { display: none; }
+  .msg-item { padding: 10px 12px 11px 14px; }
+
+  /* 没点开时阅读区一点地方都不占；点开就铺满整屏，盖住顶栏和底部五栏 */
+  .msg-wrap > .msg-read { display: none; }
+  .msg-wrap > .msg-read.mb-open {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    flex-direction: column;
+    width: 100vw;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    background: var(--surface);
+  }
+  .mb-read-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+    height: calc(52px + env(safe-area-inset-top, 0px));
+    padding: env(safe-area-inset-top, 0px) 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .mb-read-back button {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    height: 44px;
+    padding: 0 8px;
+    border: 0;
+    background: none;
+    color: var(--brand-7);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .mb-read-back span { font-size: 11.5px; color: var(--ink-4); }
+  .msg-read.mb-open .msg-read-bd {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 16px 18px;
+  }
+  .msg-read.mb-open .msg-read-ft {
+    flex: 0 0 auto;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .mr-inner { max-width: none; }
+  .mr-rel { margin-top: 18px; }
+
+  /* ---------- AI 规划：对话 / 候选计划双视图 ----------
+     候选区不再是聊天框下面那块空挡；输入框贴着底部五栏，像真的在聊天。 */
+  .mb-plan-tabs {
+    display: flex;
+    flex: 0 0 auto;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+    background: var(--surface);
+  }
+  .mb-plan-tabs button {
+    flex: 1 1 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 38px;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    color: var(--ink-3);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .mb-plan-tabs button.on {
+    background: var(--grad-active);
+    color: #fff;
+    font-weight: 500;
+  }
+  .mb-plan-n {
+    min-width: 17px;
+    height: 17px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: var(--brand-1);
+    color: var(--brand-8);
+    font-size: 10.5px;
+    line-height: 17px;
+    text-align: center;
+  }
+  .mb-plan-tabs button.on .mb-plan-n {
+    background: rgba(255, 255, 255, .24);
+    color: #fff;
+  }
+
+  .plan-wrap {
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0;
+    min-height: 0;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  .plan-wrap.mb-view-chat > .card.result { display: none; }
+  .plan-wrap.mb-view-plan > .chat { display: none; }
+  .plan-wrap > .chat {
+    flex: 1 1 auto;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    border-radius: 0 0 10px 10px;
+  }
+  .plan-wrap > .card.result {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    border-radius: 0 0 10px 10px;
+  }
+  .plan-wrap .msgs { padding: 12px; }
+  .plan-wrap .composer {
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+  .plan-wrap .summary.tight {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    overflow: visible;
+  }
+  .plan-wrap .summary.tight .sum-cell {
+    flex: 0 0 auto;
+    min-width: 0;
+  }
+  .plan-wrap .summary.tight .sum-cell + .sum-cell { border-top: 0; }
+}
+
+/* ============================================================
+   表单与筛选控件（11/10 返修）
+   优先级三档、课程可搜索提示、抽屉返回栏。桌面手机共用一套。
+   ============================================================ */
+.prio-pick { display: flex; gap: 8px; }
+.prio-pick button {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.prio-pick button:hover { border-color: var(--brand-4); }
+.prio-pick button.on {
+  background: var(--brand-1);
+  border-color: var(--brand-4);
+  color: var(--brand-9);
+  font-weight: 500;
+}
+.prio-pick .pp {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 2px;
+  background: var(--ink-4);
+}
+.prio-pick .p-mid { background: var(--warm); }
+.prio-pick .p-high { background: var(--red); }
+
+.mb-f-label em {
+  margin-left: 6px;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-4);
+}
+
+/* 工作台入口带筛选落地：单独一条可清除提示，不塞进单选控件 */
+.landing-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  background: var(--brand-1);
+  border: 1px solid var(--brand-3);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--brand-9);
+}
+.landing-bar b { font-weight: 600; }
+.landing-bar button {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: var(--brand-7);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 冲突详情里的同组切换 + 提示条轮播序号 */
+.cf-peer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  background: var(--red-bg);
+  border: 1px solid var(--red-line);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #9E322B;
+}
+.cf-peer button {
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  background: none;
+  color: #9E322B;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.cf-peer button:disabled { opacity: .35; cursor: default; }
+.cf-idx {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  background: rgba(186, 26, 26, .10);
+  font-size: 11px;
+}
+
+@keyframes cf-marquee {
+  0%, 10% { transform: translateX(0); }
+  90%, 100% { transform: translateX(var(--cf-shift, 0px)); }
+}
+
+/* ============================================================
+   移动端适配 · 第四批：任务页首屏
+   ------------------------------------------------------------
+   四格概览横滑卡带在 390px 下只露 2.2 格，数字和说明一起被裁，
+   第三、四格等于不存在。换成一行行动信号，不重复「共 11 项」。
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 顶栏已经写了「课程与任务」，页头标题 + 说明再重复一遍，
+     还和统计数字撞信息。手机只留操作按钮。 */
+  .tk-page-head { margin-bottom: 8px; justify-content: flex-end; }
+  .tk-page-head > div:first-child { display: none; }
+  .tk-page-head .ph-right {
+    width: 100%;
+    flex-wrap: nowrap;
+    padding-top: 0;
+  }
+  .tk-page-head .ph-right > .t-button { flex: 1 1 0; min-width: 0; }
+
+  /* 0,2,0 特异性盖过第二批 .summary 的横滑规则 */
+  .tk-summary.summary { display: none; }
+
+  .mb-kpi {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line-2);
+    background: #FAFCFC;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+  .kpi-i b {
+    margin-right: 3px;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+  .kpi-todo b { color: var(--brand-7); }
+  .kpi-soon b { color: #C2410C; }
+  .kpi-over,
+  .kpi-over b { color: #BA1A1A; }
+  .kpi-done b { color: var(--ink-4); }
+  .kpi-sep {
+    flex: 0 0 1px;
+    width: 1px;
+    height: 11px;
+    background: var(--line);
+  }
+
+  /* ---------- 11/10 返修：新建任务弹窗 ----------
+     两列 grid 在 390px 下每列只剩 160px，预估耗时说明溢出、
+     优先级糊成灰补丁。改单列，每个字段各占一行。 */
+  .dlg-form { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .t-dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  .dlg-acts .t-button { flex: 1 1 0; }
+  /* 按钮原本在滚动区里，内容一长就得滚到底才能点。
+     吸在内容区底部：滚动时始终可见。
+     body 的底部内边距让给按钮，否则按钮下面会漏出一行被压住的文字。 */
+  .t-dialog__body:has(.dlg-acts) { padding-bottom: 0; }
+  .t-dialog .dlg-acts {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    margin-top: 4px;
+    padding: 10px 0 12px;
+    background: var(--surface);
+    box-shadow: 0 -8px 12px -8px rgba(25, 28, 30, .18);
+  }
+
+  /* ---------- 11/10 返修：筛选抽屉内容可拖动 ----------
+     header / footer 固定，中间内容区独立滚动，滚动不带着整页跑。 */
+  .mb-sheet-bd {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    padding-bottom: 16px;
+  }
+
+  /* ---------- 11/10 返修：TDesign 抽屉统一返回栏 ----------
+     自带 header 的关闭按钮在全宽抽屉里被推到屏外，三个详情面板
+     都点不回上一级。手机隐藏自带 header，改自绘固定返回栏。 */
+  .t-drawer__header { display: none; }
+  .t-drawer__body { padding-top: 52px !important; }
+  .dw-back {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 3100;
+    align-items: center;
+    gap: 8px;
+    height: 52px;
+    padding: 0 8px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .dw-back button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 44px;
+    padding: 0 10px;
+    border: 0;
+    background: none;
+    color: var(--brand-7);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .dw-back button::before {
+    content: '';
+    width: 9px;
+    height: 9px;
+    border-left: 1.6px solid currentColor;
+    border-bottom: 1.6px solid currentColor;
+    transform: rotate(45deg);
+  }
+  .dw-back b { font-size: 14px; font-weight: 500; color: var(--ink-1); }
+
+  /* ---------- 11/10 返修：首页日期行 + 三格概览 ---------- */
+  .home-page-head { margin-bottom: 8px; }
+  .home-page-head .ph-right {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+  }
+  .home-page-head .ph-date {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .home-page-head .ph-date b { font-size: 13px; white-space: nowrap; }
+  .home-page-head .ph-date span { font-size: 11px; white-space: nowrap; }
+  .home-page-head .ph-right > .t-button {
+    flex: 0 0 auto;
+    min-height: 40px;
+    padding: 0 12px;
+  }
+  /* 三格横滑只露 2.2 格，第三格拖不到。改成一行三等分，
+     全见、不滑、三个入口都还能点。说明文字收进各自落地页。 */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    overflow: visible;
+    margin-bottom: 10px;
+  }
+  .stat-card {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    padding: 10px 8px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    scroll-snap-align: none;
+  }
+  .st-ico { width: 28px; height: 28px; flex: 0 0 28px; border-radius: 8px; }
+  .st-label { font-size: 11px; white-space: nowrap; }
+  .st-val { font-size: 20px; }
+  .st-sub,
+  .st-go { display: none; }
+
+  /* ---------- 11/10 返修：AI 规划页头 ----------
+     「上次规划 + 重新规划」原本孤零零飘在点阵底上，
+     收成一条白底状态条，和下面的切换条分层。 */
+  .ai-page-head { margin-bottom: 8px; gap: 8px; }
+  .ai-page-head .ph-right {
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 40px;
+    padding: 0 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-card);
+  }
+  .ai-page-head .ph-right .t-button {
+    min-height: 36px;
+    border: 0;
+    padding: 0 4px;
+    font-size: 12.5px;
+  }
+
+  /* ---------- 11/10：工作台一屏看完 ----------
+     待办 / 日程 / AI 入口拼成一张「今日」面板：同一外框、同一左右边线，
+     每段内部各自滚动，段间用 1px 分隔线，不靠大间距硬撑。 */
+  .page-home .content {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 8px;
+  }
+  .page-home .page-head,
+  .page-home .stat-row,
+  .page-home .ai-bar { flex: 0 0 auto; }
+
+  .page-home .home-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    /* 桌面是 align-items:start，不覆盖的话两张卡会按内容收缩成不同宽度 */
+    align-items: stretch;
+    gap: 0;
+    padding-bottom: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+  }
+  .page-home .home-grid > .card.grow {
+    flex: 1 1 0;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  /* 待办任务更重要，多分一点高度，能多看一条 */
+  .page-home .home-grid > .card.grow:first-child { flex: 1.45 1 0; }
+  .page-home .home-grid > .card.grow + .card.grow {
+    border-top: 1px solid var(--line-2);
+  }
+  /* 覆盖桌面「内容区不滚」的规则，手机每段自己在框里滚 */
+  .page-home .home-grid > .card > .card-bd {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    padding-bottom: 6px;
+  }
+  .page-home .home-grid > .card > .card-hd { padding: 0 14px; }
+  .page-home .tk-tabs { padding: 0 14px; }
+  .page-home .tk-row { padding: 8px 14px; }
+  .page-home .tl-row { padding: 12px 14px; }
+  /* 复选框 16 + 间距 10，日程圆点也对齐到 16 + 10，标题左边缘才在一条线上 */
+  .page-home .tl-row { gap: 10px; }
+  .page-home .tl-dot { flex: 0 0 16px; width: 16px; }
+
+  /* AI 入口独立成一张卡，和日程段之间留 12px，不贴着压内容 */
+  .page-home .ai-bar {
+    margin: 12px 0 0;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+  }
+  .page-home .ai-bar-txt p { display: none; }
+  .page-home .ai-orb { width: 34px; height: 34px; flex: 0 0 34px; }
+  .page-home .ai-bar .t-button { min-height: 36px; }
+
+  /* 首屏再压一档，把高度让给两张卡 */
+  .page-home .home-page-head { margin-bottom: 6px; }
+  .page-home .home-page-head .ph-right { padding: 6px 10px; }
+  .page-home .home-page-head .ph-right > .t-button { min-height: 36px; }
+  .page-home .stat-card { padding: 8px; gap: 4px; }
+  .page-home .st-ico { width: 26px; height: 26px; flex: 0 0 26px; }
+  .page-home .st-val { font-size: 18px; }
+
+  /* 资料库工具栏：搜索整行、两个下拉各半、计数与视图切换一行，左右都撑满 */
+  .lib-toolbar { padding: 10px 12px; }
+  .lib-toolbar .tb-line { flex-wrap: wrap; gap: 8px; }
+  .lib-toolbar .tb-line .t-input,
+  .lib-toolbar .tb-line .t-input__wrap { flex: 1 1 100%; width: 100% !important; }
+  .lib-toolbar .tb-line .t-select,
+  .lib-toolbar .tb-line .t-select__wrap {
+    flex: 0 0 auto;
+    width: calc(50% - 4px) !important;
+    min-width: 0;
+  }
+  /* 内层还要撑满，否则下拉文字会被旧宽度截成「全…」 */
+  .lib-toolbar .tb-line .t-select { width: 100% !important; }
+  .lib-toolbar .tb-line .sp { display: none; }
+  .lib-toolbar .tb-line .tb-count { flex: 1 1 auto; font-size: 11.5px; }
+  .lib-toolbar .tb-line .lib-views { flex: 0 0 auto; }
+
+  /* 冲突提示条固定一行：长文案省略，多处冲突靠自动轮播看全，
+     别让它折成两行把周网格顶下去，也不删——冲突是硬约束 */
+  /* 冲突提示条固定一行高，长文案自动横向滚动，把整句看完 */
+  .conflict-bar { min-height: 38px; padding: 6px 10px; font-size: 12px; }
+  .conflict-bar .cf-txt { overflow: hidden; }
+  .cf-track {
+    display: inline-flex;
+    align-items: baseline;
+    white-space: nowrap;
+    will-change: transform;
+  }
+  .cf-track.run { animation: cf-marquee var(--cf-dur, 16s) linear infinite; }
+  .conflict-bar .t-button { flex: 0 0 auto; min-height: 32px; }
+}
+
+/* ============================================================
    顶栏全局搜索
    面板比输入框宽（560 vs 360）：结果行左边是标题、右边是截止时间，
    挤在 360 里标题只会剩十几个字。
@@ -3831,3 +5113,26 @@ table.tasks {
 @media (max-width: 980px) {
   .srch-panel { width: 420px; }
 }
+
+/* ============================================================
+   矮屏（高 ≤ 700）：工作台放弃「一屏塞完」，改回整页滚动
+   390×844 下两段各露 3 条刚好；395×647 却只剩 139 / 97 ——
+   日程段可视区只有 52px，等于看不见。矮屏优先可读性：
+   两段各给一个够用的固定高度，段内仍可滚，整页也能滚。
+   ============================================================ */
+@media (max-width: 768px) and (max-height: 700px) {
+  .page-home .content { overflow-y: auto; }
+
+  .page-home .home-grid {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  .page-home .home-grid > .card.grow,
+  .page-home .home-grid > .card.grow:first-child {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+  .page-home .home-grid > .card:first-child > .card-bd { max-height: 268px; }
+  .page-home .home-grid > .card + .card > .card-bd { max-height: 232px; }
+}
+

@@ -53,6 +53,12 @@
       <div class="token"><i style="background:#F7F9F8;border:1px solid #E2E8E7"></i>页面底色 #F7F9F8</div>
     </div>
 
+    <!-- 移动端：放在表格上方，一屏就能看到；表格本身可以往下滚 -->
+    <div class="doc-card" style="margin:0 0 12px;padding:11px 14px;font-size:12.5px;line-height:1.75;color:var(--ink-3)">
+      <b style="color:var(--ink-1);font-weight:500">移动端</b>：768px 一档断点，≤768 走手机布局。底部五栏是日程 / 任务 / 工作台 / 资料 / 我的，工作台居中；AI 规划走首页入口与顶栏图标，消息走铃铛，系统管理收进「我的」并提示用电脑。日程页借用紧凑周网格的外形，纵轴仍是真实的 7:00–23:00 钟点，不是课表节次。除本页外八页完整适配，系统管理只保不溢出。
+      <a class="go" href="mobile-preview.html" style="margin-left:4px">预览壳 →</a>
+    </div>
+
     <div class="doc-card">
       <table class="doc-table">
         <thead>
@@ -91,8 +97,8 @@
           <tr>
             <td class="name">候选计划预览</td>
             <td class="dim">阶段 3 · 规则 3–6</td>
-            <td class="dim">第二批</td>
-            <td class="dim">待交付</td>
+            <td class="dim">第二批 · 已并入 AI 学习规划页，不再单独出一页</td>
+            <td><a class="go" href="ai-plan.html">打开 →</a></td>
           </tr>
           <tr>
             <td class="name">动态重规划（新旧对比）</td>
@@ -125,15 +131,15 @@
             <td><a class="go" href="home.html">打开 →</a></td>
           </tr>
           <tr>
-            <td class="name">个人中心（身份信息 / 头像昵称 / 登录方式 / 学习偏好）</td>
+            <td class="name">个人中心（身份信息 / 学习偏好 / 提醒设置 / 账号与安全）</td>
             <td class="dim">阶段 3 · Planner 输入</td>
-            <td class="dim">第三批 · 已交付</td>
+            <td class="dim">第三批 · 已交付。主页面四个父入口，退出登录在最下；头像昵称、提醒邮箱、登录记录收进「账号与安全」二级面板；系统管理在手机上改为提示用电脑端</td>
             <td><a class="go" href="profile.html">打开 →</a></td>
           </tr>
           <tr>
             <td class="name">登录</td>
             <td class="dim">阶段 0</td>
-            <td class="dim">第三批 · 已交付。整页校园照片打底、登录卡居中；账号密码与扫码两个页签；演示身份是居中弹窗，可切学生 / 管理员 / 停用账号，停用态与用户管理同一份数据；已登录再进本页自动跳首页</td>
+            <td class="dim">第三批 · 已交付。桌面：校园照片打底、账号密码与扫码两个页签；手机：只有统一认证账号与密码，深绿渐变底。演示身份是居中弹窗，可切学生 / 管理员 / 停用账号；已登录再进本页自动跳首页，换人登录后顶栏与个人中心跟着换</td>
             <td><a class="go" href="login.html">打开 →</a></td>
           </tr>
           <tr>
