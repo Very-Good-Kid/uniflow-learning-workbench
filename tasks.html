@@ -72,31 +72,41 @@
       <button @click="clearLanding">清除筛选</button>
     </div>
 
-    <!-- ================= 筛选 ================= -->
+    <!-- ================= 筛选 =================
+         默认收起：只留搜索、结果数和排序。
+         来源/状态/课程/类型/到期收进第二行，按钮上带生效条数，
+         收起也能看出「筛过」。手机端整条隐藏，走下面的抽屉。 -->
     <div class="toolbar tk-toolbar">
       <div class="tb-line">
         <t-input v-model="q" placeholder="搜索任务或课程" clearable style="width:230px">
           <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
         </t-input>
+        <button class="flt-btn" :class="{ on: fltOpen || activeFilterCount }" @click="fltOpen = !fltOpen">
+          <app-icon name="list" :size="15"></app-icon>
+          筛选
+          <span class="flt-n" v-if="activeFilterCount">{{ activeFilterCount }}</span>
+          <app-icon name="chev-down" :size="14" class="flt-arw" :class="{ up: fltOpen }"></app-icon>
+        </button>
+        <span class="sp"></span>
+        <span class="tb-count">
+          共 {{ tasks.length }} 项，筛出 <b>{{ filtered.length }}</b> 项
+        </span>
+        <t-select v-model="sortBy" :options="sortOptions" style="width:140px"></t-select>
+      </div>
+      <div class="tb-line tb-flt" v-show="fltOpen">
+        <span class="flt-label">来源</span>
         <t-radio-group v-model="fSource" variant="default-filled">
-          <t-radio-button value="all">全部来源</t-radio-button>
+          <t-radio-button value="all">全部</t-radio-button>
           <t-radio-button value="platform">平台同步</t-radio-button>
           <t-radio-button value="manual">手动创建</t-radio-button>
           <t-radio-button value="import">文件导入</t-radio-button>
         </t-radio-group>
-        <span class="sp"></span>
-        <t-select v-model="sortBy" :options="sortOptions" style="width:140px"></t-select>
-        <t-button variant="text" @click="resetFilter">重置筛选</t-button>
-      </div>
-      <div class="tb-line">
         <t-select v-model="fStatus" :options="statusOptions" style="width:118px"></t-select>
         <t-select v-model="fCourse" :options="courseOptions" filterable style="width:140px"></t-select>
         <t-select v-model="fType" :options="typeOptions" style="width:112px"></t-select>
         <t-select v-model="fDue" :options="dueOptions" style="width:124px"></t-select>
         <span class="sp"></span>
-        <span class="tb-count">
-          共 {{ tasks.length }} 项，筛出 <b>{{ filtered.length }}</b> 项
-        </span>
+        <t-button variant="text" @click="resetFilter">重置筛选</t-button>
       </div>
     </div>
 
@@ -128,7 +138,9 @@
       </div>
     </div>
 
-    <!-- 手机端：筛选与排序收进底部抽屉，页面上只留一行工具条 -->
+    <!-- 手机端：筛选与排序收进底部抽屉，页面上只留一行工具条。
+         不画拖拽把手：底部有固定的「完成」栏，抽屉一拖高，那栏的位置
+         就跟着漂，用户会分不清它是「确认筛选」还是「收起抽屉」。 -->
     <div class="mb-filter-mask" v-if="filterOpen" @click="filterOpen = false"></div>
     <div class="mb-filter-sheet" v-if="filterOpen">
       <div class="mb-sheet-hd">
@@ -475,6 +487,8 @@
         landing: null,
 
         q: '',
+        /* 桌面筛选默认收起，手机上整条隐藏、走底部抽屉 */
+        fltOpen: false,
         fSource: 'all',
         fStatus: 'all',
         fCourse: 'all',

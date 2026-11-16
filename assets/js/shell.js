@@ -34,8 +34,38 @@
         major: u.major,
         role: u.role
       };
+    },
+    /* 角色只有一个用途：学生看不到系统管理。其它页面两端一致，
+       差异放在「能不能进管理端」这一条上，不做两套界面。
+       未登录时回退到演示账号（管理员），评审直接双击页面也能看全。 */
+    isAdmin: function () {
+      var u = this.current();
+      return !!u && u.role === 'admin';
     }
   };
+
+  /* 滚动条默认隐形，滚动一下才出现（停 800ms 淡出）。
+     纯 CSS 做不到「滚动时才显示」，所以监听捕获阶段的 scroll——
+     scroll 不冒泡，只有捕获能拿到内层滚动容器——给真正在滚的那个
+     元素挂 .is-scrolling，样式在 app.css 末尾。 */
+  (function autoHideScrollbar() {
+    var timers = new WeakMap();
+    function mark(el) {
+      if (!el || el.nodeType !== 1) return;
+      var scrollable = (el.scrollHeight - el.clientHeight > 2) ||
+                       (el.scrollWidth - el.clientWidth > 2);
+      if (!scrollable) return;
+      el.classList.add('is-scrolling');
+      var t = timers.get(el);
+      if (t) clearTimeout(t);
+      timers.set(el, setTimeout(function () {
+        el.classList.remove('is-scrolling');
+      }, 800));
+    }
+    document.addEventListener('scroll', function (e) {
+      mark(e.target === document ? document.documentElement : e.target);
+    }, true);
+  })();
 
   /* 手机底部五栏：顺序是宝定的「日程 / 任务 / 工作台 / 资料 / 我的」。
      短标签另给一份，导航里那串长名字塞不进 78px 一格。
@@ -101,7 +131,10 @@
       return {
         brand: C.brand,
         nav: C.nav,
-        foot: C.navFoot,
+        /* 学生没有系统管理：侧栏底部这一项要按角色过滤，
+           不是灰掉——灰掉的入口会让人以为是权限没配好 */
+        foot: window.AppUser.isAdmin() ? C.navFoot : null,
+        isAdmin: window.AppUser.isAdmin(),
         version: C.version,
         user: window.AppUser.current(),
         /* 未读数走 NotifyStore；没引 mock.js 的页面（交付清单）没有角标 */
@@ -112,17 +145,25 @@
     },
 
     computed: {
-      /* 手机顶栏只放一行短标题，长名字交给省略号 */
+      /* 手机顶栏只放一行短标题，长名字交给省略号。
+         消息页不在一级导航里，要单独给名字，否则会回退成品牌名 */
       pageTitle() {
         const key = this.active;
         const n = C.nav.filter(function (x) { return x.key === key; })[0];
         if (n) return n.label;
         if (key === 'admin') return '系统管理';
+        if (key === 'messages') return '消息与通知';
         return C.brand.name;
       }
     },
 
     mounted() {
+      /* 系统管理是唯一带权限的页面：学生敲地址直接挡回工作台。
+         其它页面不校验登录态（原型要能双击就开），只有这条是边界。 */
+      if (this.active === 'admin' && !this.isAdmin) {
+        location.replace('home.html?denied=admin');
+        return;
+      }
       /* 消息页改已读时要让角标跟着变。这是全站唯一「页面写、外壳读」
          的数据，所以用事件广播，不靠 props 逐层传。 */
       const self = this;
@@ -201,7 +242,7 @@
       '      </div>',
       '    </nav>',
       '    <div class="nav-foot">',
-      '      <div class="nav-item" :class="{ active: foot.key === active }" @click="go(foot)">',
+      '      <div v-if="foot" class="nav-item" :class="{ active: foot.key === active }" @click="go(foot)">',
       '        <app-icon :name="foot.icon" :size="18" />',
       '        <span>{{ foot.label }}</span>',
       '      </div>',
@@ -211,7 +252,6 @@
       '  <div class="main">',
       '    <header class="topbar">',
       '      <div class="mb-brand">',
-      '        <div class="mb-mark"><app-icon name="cap" :size="16" /></div>',
       '        <span class="mb-title">{{ pageTitle }}</span>',
       '      </div>',
       '      <app-search-box ref="searchBox" />',

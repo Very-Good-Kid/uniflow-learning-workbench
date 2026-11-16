@@ -28,6 +28,19 @@
       </div>
     </div>
 
+    <!-- ================= 管理员专属：管理概览 =================
+         学生登录时这块整个不渲染。它不是装饰：账号数、在架资料、
+         生效公告这些别人看不到的数据，才是「管理员」和「学生」的区别。 -->
+    <div class="adm-strip" v-if="isAdmin">
+      <span class="as-tag">管理视角</span>
+      <span class="as-i">账号 <b>{{ adminStat.users }}</b></span>
+      <span class="as-i as-course">课程 <b>{{ adminStat.courses }}</b></span>
+      <span class="as-i">在架资料 <b>{{ adminStat.resources }}</b></span>
+      <span class="as-i as-ann">生效公告 <b>{{ adminStat.ann }}</b></span>
+      <span class="as-sync"><i></i>教务同步 {{ adminStat.syncAt }} 正常</span>
+      <a class="link" @click="go('admin.html')">进入系统管理<app-icon name="arrow-right" :size="13"></app-icon></a>
+    </div>
+
     <!-- ================= 学习概况：三格 ================= -->
     <div class="stat-row">
       <div class="stat-card" @click="go('tasks.html?scope=todo')">
@@ -61,14 +74,24 @@
       </div>
     </div>
 
-    <!-- ================= 主体：待办任务 | 今日日程 ================= -->
-    <div class="home-grid">
+    <!-- ================= 主体：待办任务 | 今日日程 =================
+         手机上是一个盒子，两页内容在里面横向滑动切换；
+         桌面仍是左右两栏。 -->
+    <div class="home-grid" ref="homePanes" @scroll.passive="onHomePaneScroll">
 
       <!-- -------- 待办任务 -------- -->
       <div class="card grow">
         <div class="card-hd">
           <span class="hd-ico"><app-icon name="list" :size="16"></app-icon></span>
           <h2>待办任务</h2>
+          <span class="pane-dots" role="button" tabindex="0"
+                :aria-label="homePane === 'todo' ? '切换到今日日程' : '切换到待办任务'"
+                @click.stop="toggleHomePane"
+                @keydown.enter.prevent="toggleHomePane"
+                @keydown.space.prevent="toggleHomePane">
+            <i :class="{ on: homePane === 'todo' }"></i>
+            <i :class="{ on: homePane === 'schedule' }"></i>
+          </span>
           <div class="hd-act">
             <a class="link" @click="goTasks(tab)">查看全部<app-icon name="arrow-right" :size="13"></app-icon></a>
           </div>
@@ -110,6 +133,14 @@
         <div class="card-hd">
           <span class="hd-ico"><app-icon name="calendar" :size="16"></app-icon></span>
           <h2>今日日程</h2>
+          <span class="pane-dots" role="button" tabindex="0"
+                :aria-label="homePane === 'todo' ? '切换到今日日程' : '切换到待办任务'"
+                @click.stop="toggleHomePane"
+                @keydown.enter.prevent="toggleHomePane"
+                @keydown.space.prevent="toggleHomePane">
+            <i :class="{ on: homePane === 'todo' }"></i>
+            <i :class="{ on: homePane === 'schedule' }"></i>
+          </span>
           <div class="hd-act">
             <a class="link" @click="go('schedule.html?date=' + todayIso)">查看完整日程<app-icon name="arrow-right" :size="13"></app-icon></a>
           </div>
@@ -256,6 +287,8 @@
         plans: M.plans,
         tabs: TABS,
         tab: 'all',
+        /* 手机上两个子页：todo / schedule，桌面不读这个值 */
+        homePane: 'todo',
         detailVisible: false,
         detail: { header: '', rows: [], note: '' },
         quickVisible: false,
@@ -265,6 +298,26 @@
 
     computed: {
       userName() { return window.AppUser.current().name; },
+
+      /* 学生这里返回 false，整条管理概览连同数据都不渲染 */
+      isAdmin() { return window.AppUser.isAdmin(); },
+
+      /* 只给管理员看的数：和系统管理里六个分支的统计同源，
+         都从 mock / AdminStore 算，不写死 */
+      adminStat() {
+        const A = window.AdminStore;
+        const users = (A && A.users) ? A.users() : (M.users || []);
+        const res = (A && A.resources) ? A.resources() : (M.resources || []);
+        const ann = (A && A.announcements) ? A.announcements() : (M.announcements || []);
+        const src = (M.dataSources || []).filter(function (s) { return s.id === 'academic'; })[0];
+        return {
+          users: users.length,
+          courses: (M.courses || []).length,
+          resources: res.filter(function (r) { return r.status !== 'off'; }).length,
+          ann: ann.filter(function (a) { return String(a.expires_at) >= M.today + ' 23:59'; }).length,
+          syncAt: src ? String(src.last_sync_at).slice(11, 16) : '—'
+        };
+      },
 
       greeting() {
         const h = Math.floor(NOW / 60);
@@ -435,6 +488,102 @@
     methods: {
       go(href) { location.href = href; },
 
+      /* 手机上两页在同一个盒子里横向滑动；滚动结束按位置回写当前页，
+         圆点跟着变。桌面没有横向滚动，这两个方法不会被触发。 */
+      onHomePaneScroll(ev) {
+        const el = ev.target;
+        if (!el || !el.clientWidth) return;
+        const idx = Math.round(el.scrollLeft / el.clientWidth);
+        const pane = idx > 0 ? 'schedule' : 'todo';
+        if (pane !== this.homePane) this.homePane = pane;
+      },
+
+      goHomePane(pane) {
+        const el = this.$refs.homePanes;
+        this.homePane = pane;
+        if (!el || !el.clientWidth) return;
+        el.scrollTo({ left: pane === 'schedule' ? el.clientWidth : 0, behavior: 'smooth' });
+      },
+
+      toggleHomePane() {
+        this.goHomePane(this.homePane === 'todo' ? 'schedule' : 'todo');
+      },
+
+      /* 横向拖拽：触摸和鼠标都走这一层。
+         touch-action 只放行纵向手势，所以横向不会和原生滚动打架；
+         纵向仍由卡片内容区自己滚。 */
+      initPaneDrag() {
+        const el = this.$refs.homePanes;
+        if (!el) return;
+
+        let startX = 0, startY = 0, startLeft = 0, pid = null, dragging = false;
+        let endedAt = 0;
+        const self = this;
+
+        function onDown(e) {
+          if (e.button !== undefined && e.button !== 0) return;
+          startX = e.clientX;
+          startY = e.clientY;
+          startLeft = el.scrollLeft;
+          pid = e.pointerId;
+          dragging = false;
+        }
+
+        function onMove(e) {
+          if (pid === null || e.pointerId !== pid) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+
+          if (!dragging) {
+            /* 横向位移明显大于纵向才接管，避免抢掉上下滑动 */
+            if (Math.abs(dx) < 8 || Math.abs(dx) <= Math.abs(dy)) return;
+            dragging = true;
+            el.classList.add('dragging');
+            try { el.setPointerCapture(pid); } catch (err) {}
+          }
+
+          e.preventDefault();
+          el.scrollLeft = startLeft - dx;
+        }
+
+        function onUp(e) {
+          if (pid === null) return;
+          if (dragging) {
+            const w = el.clientWidth || 1;
+            const page = Math.max(0, Math.min(1, Math.round(el.scrollLeft / w)));
+            el.classList.remove('dragging');
+            el.scrollTo({ left: page * w, behavior: 'smooth' });
+            self.homePane = page ? 'schedule' : 'todo';
+            endedAt = Date.now();
+          }
+          pid = null;
+          dragging = false;
+        }
+
+        /* 拖动结束浏览器还会补一个 click，别让它点开某条任务 */
+        function onClickCapture(e) {
+          if (endedAt && Date.now() - endedAt < 300) {
+            e.preventDefault();
+            e.stopPropagation();
+            endedAt = 0;
+          }
+        }
+
+        el.addEventListener('pointerdown', onDown);
+        el.addEventListener('pointermove', onMove, { passive: false });
+        el.addEventListener('pointerup', onUp);
+        el.addEventListener('pointercancel', onUp);
+        el.addEventListener('click', onClickCapture, true);
+
+        this._paneDragOff = function () {
+          el.removeEventListener('pointerdown', onDown);
+          el.removeEventListener('pointermove', onMove);
+          el.removeEventListener('pointerup', onUp);
+          el.removeEventListener('pointercancel', onUp);
+          el.removeEventListener('click', onClickCapture, true);
+        };
+      },
+
       /* 工作台入口一律带落地筛选，别让人落到「全部任务」再自己找 */
       goTasks(tab) {
         const src = tab === 'school' ? '&src=school' : (tab === 'mine' ? '&src=mine' : '');
@@ -586,6 +735,16 @@
       const self = this;
       document.title = '学习工作台 · ' + C.brand.name;
 
+      /* 学生硬闯系统管理会被外壳挡回来，落地给一句说明，
+         否则看着像链接点错了 */
+      if (new URLSearchParams(location.search).get('denied') === 'admin') {
+        TDesign.MessagePlugin.warning('学生账号没有系统管理权限');
+        history.replaceState(null, '', location.pathname);
+      }
+
+      /* 手机端两页横滑：绑定指针拖拽（桌面鼠标预览也能拖） */
+      this.initPaneDrag();
+
       /* 从任务页改完任务跳回来时，重新读一遍 */
       window.addEventListener('pageshow', function () {
         self.tasks = window.Store.tasks();
@@ -598,6 +757,10 @@
           if (input) input.focus();
         }
       });
+    },
+
+    beforeUnmount() {
+      if (this._paneDragOff) this._paneDragOff();
     }
   });
 })();

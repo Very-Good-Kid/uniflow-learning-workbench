@@ -188,12 +188,22 @@
     .adm-body .tb-line .sp,
     .adm-body .tb-line .tb-count { display: none; }
 
+    /* 搜索和「筛选」按钮同一行：搜索吃掉剩余宽度，别把按钮挤到下一行。
+       展开行里的下拉仍按各半排，操作按钮独占一行。 */
+    .adm-body .tb-line:has(.flt-btn) { flex-wrap: nowrap; }
+    .adm-body .tb-line:has(.flt-btn) .t-input,
+    .adm-body .tb-line:has(.flt-btn) .t-input__wrap {
+      flex: 1 1 auto; width: auto !important; min-width: 0;
+    }
+    .adm-body .tb-flt { flex-wrap: wrap; padding-top: 10px; }
+
     /* 四格统计在手机上收起：数字在树节点计数和表格里都有，
       128px 的高度留给表格更值 */
     .adm-card .summary { display: none; }
 
-    /* 管理端表格信息密度高，手机保底能横向看全，文档里注明建议桌面 */
-    .adm-main table.tasks { min-width: 620px; }
+    /* 管理端表格信息密度高，手机保底能横向看全，文档里注明建议桌面。
+       760px 是让「姓名」这一列有 200 左右：620 时姓名被压成竖排折字 */
+    .adm-main table.tasks { min-width: 760px; }
 
     .adm-card .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
@@ -256,14 +266,14 @@
               </div>
               <template v-for="g in uTree" :key="g.college">
                 <div class="tnode lv1" :class="{ on: uSel === 'c:' + g.college }"
-                     @click="uSel = 'c:' + g.college; uFold[g.college] = false">
-                  <span class="fold" :class="{ closed: uFold[g.college] }"
-                        title="折叠 / 展开" @click.stop="uFold[g.college] = !uFold[g.college]">
+                     @click="uSel = 'c:' + g.college; uFold[g.college] = true">
+                  <span class="fold" :class="{ closed: !uFold[g.college] }"
+                        title="折叠 / 展开" @click.stop="toggleUFold(g.college)">
                     <app-icon name="chev-down" :size="12"></app-icon>
                   </span>
                   <span class="lb">{{ g.college }}</span><span class="cnt">{{ g.count }}</span>
                 </div>
-                <div v-for="m in g.majors" v-show="!uFold[g.college]" :key="m.major" class="tnode lv2"
+                <div v-for="m in g.majors" v-show="uFold[g.college]" :key="m.major" class="tnode lv2"
                      :class="{ on: uSel === 'm:' + g.college + '|' + m.major }"
                      @click="uSel = 'm:' + g.college + '|' + m.major">
                   <span class="lb">{{ m.major }}</span><span class="cnt">{{ m.count }}</span>
@@ -312,10 +322,21 @@
                   <t-input v-model="uq" placeholder="搜索姓名、学号或学院" clearable style="width:200px">
                     <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
                   </t-input>
-                  <t-select v-model="uRole" :options="roleOptions" style="width:118px"></t-select>
+                  <button class="flt-btn" :class="{ on: fltUserOpen || uFilterCount }"
+                          @click="fltUserOpen = !fltUserOpen">
+                    <app-icon name="list" :size="15"></app-icon>
+                    筛选
+                    <span class="flt-n" v-if="uFilterCount">{{ uFilterCount }}</span>
+                    <app-icon name="chev-down" :size="14" class="flt-arw" :class="{ up: fltUserOpen }"></app-icon>
+                  </button>
                   <span class="sp"></span>
-                  <t-select v-model="uStatus" :options="userStatusOptions" style="width:112px"></t-select>
                   <span class="tb-count">筛出 <b>{{ uFiltered.length }}</b> / {{ users.length }} 个账号</span>
+                </div>
+                <div class="tb-line tb-flt" v-show="fltUserOpen">
+                  <t-select v-model="uRole" :options="roleOptions" style="width:126px"></t-select>
+                  <t-select v-model="uStatus" :options="userStatusOptions" style="width:120px"></t-select>
+                  <span class="sp"></span>
+                  <t-button variant="text" @click="resetUserFilter">清空筛选</t-button>
                 </div>
               </div>
 
@@ -469,14 +490,14 @@
               </div>
               <template v-for="g in rTree" :key="g.course">
                 <div class="tnode lv1" :class="{ on: rSel === 'c:' + g.course }"
-                     @click="rSel = 'c:' + g.course; rFold[g.course] = false">
-                  <span class="fold" :class="{ closed: rFold[g.course] }"
-                        title="折叠 / 展开" @click.stop="rFold[g.course] = !rFold[g.course]">
+                     @click="rSel = 'c:' + g.course; rFold[g.course] = true">
+                  <span class="fold" :class="{ closed: !rFold[g.course] }"
+                        title="折叠 / 展开" @click.stop="toggleRFold(g.course)">
                     <app-icon name="chev-down" :size="12"></app-icon>
                   </span>
                   <span class="lb">{{ g.course }}</span><span class="cnt">{{ g.count }}</span>
                 </div>
-                <div v-for="cat in g.cats" v-show="!rFold[g.course]" :key="cat.name" class="tnode lv2"
+                <div v-for="cat in g.cats" v-show="rFold[g.course]" :key="cat.name" class="tnode lv2"
                      :class="{ on: rSel === 'cat:' + g.course + '|' + cat.name }"
                      @click="rSel = 'cat:' + g.course + '|' + cat.name">
                   <span class="lb">{{ cat.name }}</span><span class="cnt">{{ cat.count }}</span>
@@ -525,12 +546,23 @@
                   <t-input v-model="rq" placeholder="搜索资料名或上传者" clearable style="width:220px">
                     <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
                   </t-input>
-                  <t-select v-model="rStatus" :options="resStatusOptions" style="width:118px"></t-select>
+                  <button class="flt-btn" :class="{ on: fltResOpen || rFilterCount }"
+                          @click="fltResOpen = !fltResOpen">
+                    <app-icon name="list" :size="15"></app-icon>
+                    筛选
+                    <span class="flt-n" v-if="rFilterCount">{{ rFilterCount }}</span>
+                    <app-icon name="chev-down" :size="14" class="flt-arw" :class="{ up: fltResOpen }"></app-icon>
+                  </button>
                   <span class="sp"></span>
                   <span class="tb-count">筛出 <b>{{ rFiltered.length }}</b> / {{ resources.length }} 份</span>
                   <t-button theme="primary" @click="openResUpload">
                     <app-icon name="plus" :size="16" style="margin-right:4px"></app-icon>上传资料
                   </t-button>
+                </div>
+                <div class="tb-line tb-flt" v-show="fltResOpen">
+                  <t-select v-model="rStatus" :options="resStatusOptions" style="width:126px"></t-select>
+                  <span class="sp"></span>
+                  <t-button variant="text" @click="resetResFilter">清空筛选</t-button>
                 </div>
               </div>
 
@@ -939,6 +971,8 @@
         /* ---- 用户 ---- */
         users: AdminStore.users(),
         uq: '', uRole: 'all', uStatus: 'all',
+        /* 筛选默认收起：搜索常驻，角色与状态点「筛选」再展开 */
+        fltUserOpen: false,
         uSel: 'all',
         uFold: {},
 
@@ -953,6 +987,7 @@
         /* ---- 资料 ---- */
         resources: AdminStore.resources(),
         rq: '', rStatus: 'all',
+        fltResOpen: false,
         rSel: 'all',
         rFold: {},
         rDelId: null,
@@ -977,6 +1012,14 @@
       tabName() {
         const t = this.tabs.find((x) => x.k === this.tab);
         return t ? t.t : '系统管理';
+      },
+
+      /* 收起时按钮上的条数，别让「筛过」和「没筛」长得一样 */
+      uFilterCount() {
+        return (this.uRole !== 'all' ? 1 : 0) + (this.uStatus !== 'all' ? 1 : 0);
+      },
+      rFilterCount() {
+        return this.rStatus !== 'all' ? 1 : 0;
       },
 
       roleOptions() {
@@ -1208,6 +1251,17 @@
       /* ---- 用户 ---- */
       resetUserFilter() { this.uq = ''; this.uRole = 'all'; this.uStatus = 'all'; },
 
+      /* 左树默认收起（学院只显示到学院这一层），点箭头才展开专业。
+         收起时如果正选着这个学院下的某个专业，把选中态收回到学院，
+         否则被选中的行消失、表还在按专业筛，看着像丢了条件。 */
+      toggleUFold(college) {
+        const open = !this.uFold[college];
+        this.uFold[college] = open;
+        if (!open && String(this.uSel).indexOf('m:' + college + '|') === 0) {
+          this.uSel = 'c:' + college;
+        }
+      },
+
       activeAdmins() {
         return this.users.filter(function (u) { return u.role === 'admin' && u.status === 'active'; });
       },
@@ -1309,6 +1363,14 @@
       /* ---- 资料 ---- */
       resetResFilter() { this.rq = ''; this.rStatus = 'all'; },
 
+      toggleRFold(course) {
+        const open = !this.rFold[course];
+        this.rFold[course] = open;
+        if (!open && String(this.rSel).indexOf('cat:' + course + '|') === 0) {
+          this.rSel = 'c:' + course;
+        }
+      },
+
       toggleRes(r) {
         if (r.status === 'off') {
           delete r.status;
@@ -1380,7 +1442,7 @@
         this.resFormVisible = false;
         /* 新上传的资料挂到对应课程节点下，自动选中并展开，方便确认 */
         this.rSel = 'c:' + d.course_name;
-        this.rFold[d.course_name] = false;
+        this.rFold[d.course_name] = true;
         this.toast('已上传并在架：' + d.title.trim() + '，学生端资料库立即可见');
       },
 

@@ -34,14 +34,28 @@
     width: 3px; border-radius: 0 2px 2px 0; background: var(--brand-7);
   }
   .idc-main { min-width: 0; }
-  .idc-line1 { display: flex; align-items: baseline; gap: 12px; }
+  .idc-line1 { display: flex; align-items: baseline; gap: 8px 12px; flex-wrap: wrap; }
   .idc-name {
     font-size: 18px; font-weight: 500; color: var(--ink-1); letter-spacing: .5px;
+    white-space: nowrap;
   }
   .idc-sid {
     font-size: 12.5px; color: var(--ink-2);
     font-variant-numeric: tabular-nums; letter-spacing: .6px;
+    white-space: nowrap;
   }
+  /* 角色标签：管理员用主色浅底，学生用中性灰底，字号压到 10.5px
+     免得抢了姓名和学号的主次；nowrap 是必须的——390 宽下它一被压缩
+     就会折成「管理 / 员」，把姓名也带着挤成竖排 */
+  .idc-role {
+    align-self: center;
+    flex: 0 0 auto;
+    height: 18px; padding: 0 7px; border-radius: 9px;
+    display: inline-flex; align-items: center;
+    background: #F1F4F3; color: var(--ink-2);
+    font-size: 10.5px; letter-spacing: .2px; white-space: nowrap;
+  }
+  .idc-role.adm { background: var(--brand-2); color: var(--brand-8); }
   .idc-line2 {
     margin-top: 7px; font-size: 12px; color: var(--ink-3);
     display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
@@ -183,16 +197,24 @@
      被挤成单字竖列、分段按钮里的字也竖排。改成标签一行、控件
      全宽一行、说明一行。含开关的行本来就只有两栏，保持一行。 */
   @media (max-width: 768px) {
-    /* 小屏（360×640 这类）内容放不下时，pf-card 不能被压缩：
-       压缩会让「退出登录」溢到卡片可视区外，还正好压在底部五栏下面，
-       点上去命中的是底栏图标，看起来就像点了没反应。
-       改成不收缩，整页 .content 滚动，按钮一定滚得到。 */
+    /* 主卡片和其他页面一样，只占内容区剩下的高度，不随内容继续长高。
+       内容超出时在卡片内部滚，退出登录也在同一个滚动区里，滚到底就能点。
+       这样个人中心不会再把整页撑长，底栏位置也始终一致。 */
     .pf-card {
-      flex: 1 0 auto;
-      overflow: visible;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     }
     .pf-logout { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
     .pf-logout .t-button { width: 100%; }
+
+    /* 手机上不给系统管理入口：管理端只做到「不溢出、能读」，
+       真在手机上改用户和课程容易误操作，改成一句说明。
+       选择器带上 .pf-entries：基础规则在后面，不加一级盖不住 */
+    .pf-entries .pf-adm-entry { display: none; }
+    .pf-entries .pf-adm-mb { display: block; margin: 10px 2px 0; }
 
     .dr-body { padding: 0 14px 18px; }
     .dr-lead { font-size: 12px; line-height: 1.6; }
@@ -284,6 +306,8 @@
   /* 四个父入口竖排，退出登录沉到最下面 */
   .pf-entries .sub-item + .sub-item { margin-top: 8px; }
   .pf-hint { margin: 12px 2px 0; font-size: 11.5px; color: var(--ink-4); line-height: 1.6; }
+  /* 系统管理：桌面给可点入口，手机只给一句「去电脑端」 */
+  .pf-adm-mb { display: none; }
   .pf-logout { padding: 12px 18px 14px; }
 </style>
 </head>
@@ -312,6 +336,7 @@
             <div class="idc-main">
               <div class="idc-line1">
                 <span class="idc-name">{{ user.name }}</span>
+                <span class="idc-role" :class="{ adm: isAdmin }">{{ roleText }}</span>
                 <span class="idc-sid">{{ user.studentId }}</span>
               </div>
               <div class="idc-line2">
@@ -362,7 +387,20 @@
             <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
           </div>
 
-          <p class="pf-hint">系统管理涉及用户、课程、资料三张表，请在电脑端打开。</p>
+          <!-- 系统管理只给管理员；手机上不提供入口（管理端没按手机适配），
+               改成一句去电脑端打开的说明，两个分支都用静态文字 -->
+          <template v-if="isAdmin">
+            <div class="sub-item pf-adm-entry" @click="goAdmin">
+              <div class="sub-main">
+                <div class="sub-t">系统管理</div>
+                <div class="sub-d">用户、课程、资料、公告与同步状态</div>
+              </div>
+              <span class="sub-act">进入</span>
+              <app-icon name="chev-right" :size="14" class="sub-arrow"></app-icon>
+            </div>
+            <p class="pf-hint pf-adm-mb">系统管理涉及用户、课程、资料三张表，请在电脑端打开。</p>
+          </template>
+          <p class="pf-hint" v-else>学生账号不含系统管理权限，需要管理用户与课程请联系学院管理员。</p>
         </div>
       </div>
 
@@ -767,6 +805,13 @@
     },
 
     computed: {
+      /* 角色只影响「有没有系统管理」，不做两套设置面板 */
+      isAdmin: function () {
+        return window.AppUser.isAdmin();
+      },
+      roleText: function () {
+        return this.isAdmin ? '管理员' : '学生';
+      },
       /* 收起时这一行要说得清设了什么 */
       prefSummary: function () {
         var self = this;
@@ -971,7 +1016,11 @@
         var fn = { warning: TDesign.MessagePlugin.warning, success: TDesign.MessagePlugin.success }[theme] || TDesign.MessagePlugin.success;
         fn(t);
       },
-      goAdmin: function () { location.href = 'admin.html'; },
+      goAdmin: function () {
+        /* 兜底：手机上入口已经隐藏，万一从别处跳过来也不该进管理端 */
+        if (window.innerWidth <= 768) { this.toast('系统管理请在电脑端打开'); return; }
+        location.href = 'admin.html';
+      },
 
       logout: function () {
         /* 会话键与 login.html 的 LoginSession 同一个，清完再跳，

@@ -17,7 +17,10 @@
     <div class="page-head">
       <div>
         <h1>日程</h1>
-        <p>按周查看课程、学习时段与个人日程，点空白格添加，点日程块修改</p>
+        <p>
+          <span class="only-desk">按周查看课程、学习时段与个人日程，点空白格添加，点日程块修改</span>
+          <span class="only-mb">按周查看课程与日程，点空白格添加</span>
+        </p>
       </div>
       <div class="ph-right">
         <t-select v-model="termId" :options="termOptions" style="width:212px"></t-select>

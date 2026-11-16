@@ -1008,6 +1008,9 @@ body {
   flex: 0 0 auto;
 }
 
+/* 手机上才用：工作台两页的滑动位置提示 */
+.pane-dots { display: none; }
+
 .card-bd { padding: 0; min-height: 0; }
 .card-bd.scroll { overflow-y: auto; }
 .card-bd.pad { padding: 14px 16px; }
@@ -1831,6 +1834,36 @@ body {
 
 .tb-line .sp { margin-left: auto; }
 .tb-count { font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+
+/* ------------------------------------------------------------
+   筛选折叠（全站统一）
+   工具条默认只留「搜索 + 筛选入口」，其余下拉收在第二行。
+   原来每个页面顶部都常驻两行控件，首屏内容被推下去一截；
+   筛选是低频动作，不该一直占高度。
+   ------------------------------------------------------------ */
+.flt-btn {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: var(--r-sm);
+  background: var(--surface); color: var(--ink-2);
+  font-size: 13px; cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.flt-btn:hover { border-color: var(--brand-4); color: var(--brand-7); }
+/* 展开中、或收起但仍有生效条件时点亮，否则看不出「已经筛过」 */
+.flt-btn.on,
+.flt-btn.on:hover { border-color: var(--brand-4); background: var(--brand-1); color: var(--brand-8); }
+.flt-btn .flt-n {
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--brand-7); color: #fff;
+  font-size: 10px; line-height: 16px; text-align: center;
+}
+.flt-btn .flt-arw { color: var(--ink-4); transition: transform .18s; }
+.flt-btn .flt-arw.up { transform: rotate(180deg); }
+/* 展开的第二行：和搜索行用虚线分隔；收起时 v-show 直接不占位 */
+.tb-flt { padding-top: 9px; border-top: 1px dashed var(--line-2); }
+.tb-flt .flt-label { font-size: 12px; color: var(--ink-3); flex: 0 0 auto; }
 
 .bulk {
   display: flex;
@@ -3696,32 +3729,23 @@ table.tasks {
   .main { flex: 1 1 auto; min-height: 0; }
 
   /* ---------- 顶栏 ---------- */
-  .topbar { padding: 0 8px; gap: 6px; }
+  /* 左右各 12px，和内容区的 padding 对齐：标题、卡片、图标在同一条竖线上 */
+  .topbar { padding: 0 12px; gap: 6px; }
 
   .tb-right,
   .topbar > .search { display: none; }
 
+  /* 手机顶栏只留页面名，不挂品牌方块：那个绿块和标题挤在一起，
+     只是把标题往右推，页面上又没有别处需要它来确定「这是哪个应用」 */
   .mb-brand {
     display: flex;
     align-items: center;
-    gap: 8px;
     flex: 1 1 auto;
     min-width: 0;
   }
 
-  .mb-mark {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-    border-radius: 8px;
-    background: var(--brand-7);
-    color: #fff;
-    display: grid;
-    place-items: center;
-  }
-
   .mb-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 500;
     color: var(--ink-1);
     white-space: nowrap;
@@ -4177,17 +4201,8 @@ table.tasks {
     padding: 0 16px;
     border-bottom: 1px solid var(--line-2);
   }
-  .mb-sheet-hd::before {
-    content: '';
-    position: absolute;
-    top: 7px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 34px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--line);
-  }
+  /* 抽屉顶部不画拖拽把手：底部有固定「完成」栏，抽屉能拖高时那栏会跟着漂，
+     用户分不清它是确认筛选还是收起抽屉。高度就按内容自然撑开、封顶 82vh。 */
   .mb-sheet-hd b { font-size: 14px; font-weight: 500; }
   .mb-sheet-reset {
     height: 40px;
@@ -4784,32 +4799,73 @@ table.tasks {
   .page-home .stat-row,
   .page-home .ai-bar { flex: 0 0 auto; }
 
+  /* ---------- 工作台：一个盒子，两页横滑 ----------
+     待办与日程共用同一张卡：左滑到日程、右滑回待办，同一时间只露一页。
+     卡片内部仍各自纵向滚，整页不动。 */
   .page-home .home-grid {
     flex: 1 1 auto;
     min-height: 0;
     display: flex;
-    flex-direction: column;
-    /* 桌面是 align-items:start，不覆盖的话两张卡会按内容收缩成不同宽度 */
+    flex-direction: row;
     align-items: stretch;
     gap: 0;
     padding-bottom: 0;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    /* 横向自己接管（见 home.html 的指针拖拽），纵向留给卡片内部滚 */
+    touch-action: pan-y;
+    scrollbar-width: none;
     box-shadow: var(--shadow-card);
   }
-  .page-home .home-grid > .card.grow {
-    flex: 1 1 0;
+  .page-home .home-grid.dragging {
+    scroll-snap-type: none;
+    cursor: grabbing;
+    user-select: none;
+  }
+  .page-home .home-grid::-webkit-scrollbar { display: none; }
+
+  .page-home .home-grid > .card.grow,
+  .page-home .home-grid > .card.grow:first-child {
+    flex: 0 0 100%;
+    width: 100%;
+    min-width: 100%;
+    height: 100%;
     min-height: 0;
     border: 0;
     border-radius: 0;
     box-shadow: none;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
   }
-  /* 待办任务更重要，多分一点高度，能多看一条 */
-  .page-home .home-grid > .card.grow:first-child { flex: 1.45 1 0; }
-  .page-home .home-grid > .card.grow + .card.grow {
-    border-top: 1px solid var(--line-2);
+
+  /* 两个小圆点兼做位置提示和点击切换，占的是头部原有的空间 */
+  .page-home .pane-dots {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 34px;
+    height: 44px;
+    flex: 0 0 34px;
+    cursor: pointer;
+  }
+  .page-home .pane-dots i {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--line);
+    transition: width .18s, background .18s;
+  }
+  .page-home .pane-dots i.on {
+    width: 12px;
+    border-radius: 3px;
+    background: var(--brand-7);
   }
   /* 覆盖桌面「内容区不滚」的规则，手机每段自己在框里滚 */
   .page-home .home-grid > .card > .card-bd {
@@ -4853,6 +4909,14 @@ table.tasks {
   .lib-toolbar .tb-line { flex-wrap: wrap; gap: 8px; }
   .lib-toolbar .tb-line .t-input,
   .lib-toolbar .tb-line .t-input__wrap { flex: 1 1 100%; width: 100% !important; }
+  /* 搜索和「筛选」同排：搜索吃掉剩余宽度，按钮不另起一行。
+     这里不能用 nowrap——后面还有结果数和视图切换，全挤一行会把搜索压没。 */
+  .lib-toolbar .tb-line:has(.flt-btn) { flex-wrap: wrap; }
+  .lib-toolbar .tb-line:has(.flt-btn) .t-input,
+  .lib-toolbar .tb-line:has(.flt-btn) .t-input__wrap {
+    flex: 1 1 140px; width: auto !important; min-width: 120px;
+  }
+  .lib-toolbar .tb-flt { flex-wrap: wrap; padding-top: 10px; }
   .lib-toolbar .tb-line .t-select,
   .lib-toolbar .tb-line .t-select__wrap {
     flex: 0 0 auto;
@@ -5115,24 +5179,140 @@ table.tasks {
 }
 
 /* ============================================================
-   矮屏（高 ≤ 700）：工作台放弃「一屏塞完」，改回整页滚动
-   390×844 下两段各露 3 条刚好；395×647 却只剩 139 / 97 ——
-   日程段可视区只有 52px，等于看不见。矮屏优先可读性：
-   两段各给一个够用的固定高度，段内仍可滚，整页也能滚。
+   矮屏说明：工作台现在是一个盒子两页横滑，高度由内容区剩余空间决定，
+   卡片自己能缩能滚，不再需要按屏幕高度另写一套上下排列的规则。
    ============================================================ */
-@media (max-width: 768px) and (max-height: 700px) {
-  .page-home .content { overflow-y: auto; }
 
-  .page-home .home-grid {
-    flex: 0 0 auto;
-    min-height: 0;
+
+/* ============================================================
+   首页 · 管理员专属「管理视角」条
+   学生登录时整条不渲染（模板 v-if）。里面是账号数、在架资料、
+   生效公告和同步时间——这些本来就是别人看不到的数据，
+   角色差异应该体现在这里，而不是给管理员贴一个标签。
+   高度固定一条，只从下面的卡片区借 42px。
+   ============================================================ */
+.adm-strip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 42px;
+  padding: 0 14px;
+  margin-bottom: 10px;
+  background: var(--brand-1);
+  border: 1px solid var(--brand-3);
+  border-radius: 10px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.adm-strip .as-tag {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: var(--brand-7);
+  color: #fff;
+  font-size: 11px;
+  letter-spacing: .3px;
+}
+.adm-strip .as-i { flex: 0 0 auto; color: var(--ink-3); }
+.adm-strip .as-i b {
+  color: var(--ink-1);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.adm-strip .as-sync {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 2px;
+  color: var(--ink-3);
+}
+.adm-strip .as-sync i { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.adm-strip .link { flex: 0 0 auto; margin-left: auto; }
+
+@media (max-width: 768px) {
+  /* 手机上只留两个数 + 入口，其余隐藏：一行放得下，不跟待办日程抢高度 */
+  .adm-strip {
+    height: 38px;
+    gap: 10px;
+    padding: 0 10px;
+    margin-bottom: 8px;
+    font-size: 12px;
   }
-  .page-home .home-grid > .card.grow,
-  .page-home .home-grid > .card.grow:first-child {
-    flex: 0 0 auto;
-    min-height: 0;
-  }
-  .page-home .home-grid > .card:first-child > .card-bd { max-height: 268px; }
-  .page-home .home-grid > .card + .card > .card-bd { max-height: 232px; }
+  .adm-strip .as-course,
+  .adm-strip .as-ann,
+  .adm-strip .as-sync { display: none; }
+  /* 手机上不给进管理端的入口（管理端没按手机适配），条只做信息 */
+  .adm-strip .link { display: none; }
 }
 
+/* 矮屏（≤700 高）先让位：这条会和待办/日程抢高度，
+   而管理入口在「我的」→ 系统管理还有一处，不至于找不到 */
+@media (max-width: 768px) and (max-height: 700px) {
+  .adm-strip { display: none; }
+}
+
+/* ============================================================
+   手机端页面标题以顶栏为准（11/16 定）
+   顶栏 .mb-brand 里已经有页面名，页内再写一个大标题就是同一句话说两遍。
+   手机高度很贵：去掉标题行，日程页页头 137→107、资料库 97→67。
+   说明那行保留（里面有统计和操作提示），压成一行，超了省略号。
+   工作台例外：页内是「下午好，张三」，不是标题；个人中心页头整块不需要。
+   ============================================================ */
+.only-mb { display: none; }
+
+@media (max-width: 768px) {
+  .page-head h1 { display: none; }
+  .home-page-head h1 { display: block; }
+
+  /* 说明那行是 nowrap，left 块必须能被压缩、并独占一行，
+     否则它的最小宽度等于整句文字宽度，会把整行顶出屏幕（还会拖得没有省略号） */
+  .page-head:not(.home-page-head) > div:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .page-head p {
+    margin-top: 2px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pf-page-head { display: none; }
+
+  /* 桌面完整句 / 手机短句，同一段落里二选一 */
+  .only-mb { display: inline; }
+  .only-desk { display: none; }
+}
+
+/* ============================================================
+   滚动条：默认隐形，滚动时出现，停手后淡出
+   只靠 CSS 做不到「滚动时才显示」，所以由 shell.js 在捕获阶段监听
+   scroll，给真正在滚的那个元素加 .is-scrolling（停 800ms 移除）。
+   宽度固定 8px：轨道一直占位，出现时不挤动内容。
+   下面用 !important 是为了盖住各页面早先写死的 thumb 颜色，
+   那些规则散在六七个分节里，逐条清容易漏。
+   ============================================================ */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: transparent !important;
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover { background: transparent !important; }
+
+.is-scrolling::-webkit-scrollbar-thumb,
+.is-scrolling::-webkit-scrollbar-thumb:hover { background: #C4CECB !important; }
+
+/* Firefox 走标准属性，逻辑一样 */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+.is-scrolling { scrollbar-color: #C4CECB transparent; }

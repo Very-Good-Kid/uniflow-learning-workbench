@@ -57,7 +57,10 @@ window.APP_CONFIG = {
     authAccount: 'zhangsan',
     nickname: '小张',
     college: '计算机科学与技术学院',
-    major: '计算机科学与技术'
+    major: '计算机科学与技术',
+    /* 张三在 mock.users 里是 admin，回退账号要和名单一致，
+       否则没登录直接打开页面时会被判成学生 */
+    role: 'admin'
   },
 
   /* 未读数不在这里配。它由 mock.js 的 NotifyStore.unreadCount() 算，
