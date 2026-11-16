@@ -4057,23 +4057,23 @@ table.tasks {
   .tbl-scroll table.tasks tr.row-done { background: #FCFDFD; }
 
   /* 任务表：复选框 + 标题一行，截止 + 状态一行 */
-  table.tasks:not(.lib-tbl) td:nth-child(1) { flex: 0 0 22px; }
-  table.tasks:not(.lib-tbl) td:nth-child(2) {
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(1) { flex: 0 0 22px; }
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(2) {
     flex: 1 1 calc(100% - 36px);
     min-width: 0;
   }
-  table.tasks:not(.lib-tbl) td:nth-child(3),
-  table.tasks:not(.lib-tbl) td:nth-child(4),
-  table.tasks:not(.lib-tbl) td:nth-child(6),
-  table.tasks:not(.lib-tbl) td:nth-child(7),
-  table.tasks:not(.lib-tbl) td:nth-child(9) { display: none; }
-  table.tasks:not(.lib-tbl) td:nth-child(5) { margin-left: 32px; }
-  table.tasks:not(.lib-tbl) td:nth-child(8) { margin-left: auto; }
-  table.tasks:not(.lib-tbl) .t-title { font-size: 13.5px; }
-  table.tasks:not(.lib-tbl) .due { font-size: 12px; }
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(3),
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(4),
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(6),
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(7),
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(9) { display: none; }
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(5) { margin-left: 32px; }
+  .tbl-scroll table.tasks:not(.lib-tbl) td:nth-child(8) { margin-left: auto; }
+  .tbl-scroll table.tasks:not(.lib-tbl) .t-title { font-size: 13.5px; }
+  .tbl-scroll table.tasks:not(.lib-tbl) .due { font-size: 12px; }
   /* 桌面表格里「明天 / 23:59」分两行，卡片里改成一行，
      一屏能多放一条任务 */
-  table.tasks:not(.lib-tbl) .due em {
+  .tbl-scroll table.tasks:not(.lib-tbl) .due em {
     display: inline;
     margin-left: 5px;
     font-size: 11px;
@@ -4909,14 +4909,6 @@ table.tasks {
   .lib-toolbar .tb-line { flex-wrap: wrap; gap: 8px; }
   .lib-toolbar .tb-line .t-input,
   .lib-toolbar .tb-line .t-input__wrap { flex: 1 1 100%; width: 100% !important; }
-  /* 搜索和「筛选」同排：搜索吃掉剩余宽度，按钮不另起一行。
-     这里不能用 nowrap——后面还有结果数和视图切换，全挤一行会把搜索压没。 */
-  .lib-toolbar .tb-line:has(.flt-btn) { flex-wrap: wrap; }
-  .lib-toolbar .tb-line:has(.flt-btn) .t-input,
-  .lib-toolbar .tb-line:has(.flt-btn) .t-input__wrap {
-    flex: 1 1 140px; width: auto !important; min-width: 120px;
-  }
-  .lib-toolbar .tb-flt { flex-wrap: wrap; padding-top: 10px; }
   .lib-toolbar .tb-line .t-select,
   .lib-toolbar .tb-line .t-select__wrap {
     flex: 0 0 auto;

@@ -49,19 +49,16 @@
     </div>
 
     <!-- ================= 工具条 =================
-         默认收起：分类与排序收进第二行，和任务页同一套口径。
+         只有分类和排序两个控件，直接摆在第一行：收起只省 40px，
+         却要每次多点一下「筛选」，不划算。折叠只留给条件多的页面（任务页）。
          课程筛选在下面的卡带上，本来就不占这一行。 -->
     <div class="toolbar lib-toolbar">
       <div class="tb-line">
         <t-input v-model="q" placeholder="搜文件名、课程、说明" clearable style="width:250px">
           <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
         </t-input>
-        <button class="flt-btn" :class="{ on: fltOpen || fltCount }" @click="fltOpen = !fltOpen">
-          <app-icon name="list" :size="15"></app-icon>
-          筛选
-          <span class="flt-n" v-if="fltCount">{{ fltCount }}</span>
-          <app-icon name="chev-down" :size="14" class="flt-arw" :class="{ up: fltOpen }"></app-icon>
-        </button>
+        <t-select v-model="fCat" :options="catOptions" style="width:126px"></t-select>
+        <t-select v-model="sortBy" :options="sortOptions" style="width:140px"></t-select>
 
         <span class="sp"></span>
 
@@ -77,13 +74,6 @@
             <lib-icon name="flow" :size="14"></lib-icon>卡片流
           </button>
         </div>
-      </div>
-
-      <div class="tb-line tb-flt" v-show="fltOpen">
-        <t-select v-model="fCat" :options="catOptions" style="width:130px"></t-select>
-        <t-select v-model="sortBy" :options="sortOptions" style="width:146px"></t-select>
-        <span class="sp"></span>
-        <t-button variant="text" @click="resetFilter">清空筛选</t-button>
       </div>
     </div>
 
@@ -347,8 +337,6 @@
         q: '',
         course: null,
         fCat: 'all',
-        /* 分类与排序默认收起，同任务页口径 */
-        fltOpen: false,
         sortBy: 'recent',
         view: 'list',
         favOnly: false,
@@ -419,11 +407,6 @@
         });
 
         return list;
-      },
-
-      /* 收起时按钮上的条数：课程卡带与收藏是另一处入口，不重复计 */
-      fltCount() {
-        return this.fCat !== 'all' ? 1 : 0;
       },
 
       hasFilter() {

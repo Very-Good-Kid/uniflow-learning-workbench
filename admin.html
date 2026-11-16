@@ -188,14 +188,7 @@
     .adm-body .tb-line .sp,
     .adm-body .tb-line .tb-count { display: none; }
 
-    /* 搜索和「筛选」按钮同一行：搜索吃掉剩余宽度，别把按钮挤到下一行。
-       展开行里的下拉仍按各半排，操作按钮独占一行。 */
-    .adm-body .tb-line:has(.flt-btn) { flex-wrap: nowrap; }
-    .adm-body .tb-line:has(.flt-btn) .t-input,
-    .adm-body .tb-line:has(.flt-btn) .t-input__wrap {
-      flex: 1 1 auto; width: auto !important; min-width: 0;
-    }
-    .adm-body .tb-flt { flex-wrap: wrap; padding-top: 10px; }
+    /* 筛选项少（最多两个下拉），直接摊在工具条里，不做折叠 */
 
     /* 四格统计在手机上收起：数字在树节点计数和表格里都有，
       128px 的高度留给表格更值 */
@@ -317,26 +310,17 @@
                 </div>
               </div>
 
+              <!-- 只有角色和状态两个下拉，直接摆出来：收起只省 40px，
+                   却要每次多点一下，不划算。折叠留给条件多的页面 -->
               <div class="toolbar">
                 <div class="tb-line">
                   <t-input v-model="uq" placeholder="搜索姓名、学号或学院" clearable style="width:200px">
                     <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
                   </t-input>
-                  <button class="flt-btn" :class="{ on: fltUserOpen || uFilterCount }"
-                          @click="fltUserOpen = !fltUserOpen">
-                    <app-icon name="list" :size="15"></app-icon>
-                    筛选
-                    <span class="flt-n" v-if="uFilterCount">{{ uFilterCount }}</span>
-                    <app-icon name="chev-down" :size="14" class="flt-arw" :class="{ up: fltUserOpen }"></app-icon>
-                  </button>
+                  <t-select v-model="uRole" :options="roleOptions" style="width:118px"></t-select>
                   <span class="sp"></span>
+                  <t-select v-model="uStatus" :options="userStatusOptions" style="width:112px"></t-select>
                   <span class="tb-count">筛出 <b>{{ uFiltered.length }}</b> / {{ users.length }} 个账号</span>
-                </div>
-                <div class="tb-line tb-flt" v-show="fltUserOpen">
-                  <t-select v-model="uRole" :options="roleOptions" style="width:126px"></t-select>
-                  <t-select v-model="uStatus" :options="userStatusOptions" style="width:120px"></t-select>
-                  <span class="sp"></span>
-                  <t-button variant="text" @click="resetUserFilter">清空筛选</t-button>
                 </div>
               </div>
 
@@ -546,23 +530,12 @@
                   <t-input v-model="rq" placeholder="搜索资料名或上传者" clearable style="width:220px">
                     <template #prefix-icon><app-icon name="search" :size="15"></app-icon></template>
                   </t-input>
-                  <button class="flt-btn" :class="{ on: fltResOpen || rFilterCount }"
-                          @click="fltResOpen = !fltResOpen">
-                    <app-icon name="list" :size="15"></app-icon>
-                    筛选
-                    <span class="flt-n" v-if="rFilterCount">{{ rFilterCount }}</span>
-                    <app-icon name="chev-down" :size="14" class="flt-arw" :class="{ up: fltResOpen }"></app-icon>
-                  </button>
+                  <t-select v-model="rStatus" :options="resStatusOptions" style="width:118px"></t-select>
                   <span class="sp"></span>
                   <span class="tb-count">筛出 <b>{{ rFiltered.length }}</b> / {{ resources.length }} 份</span>
                   <t-button theme="primary" @click="openResUpload">
                     <app-icon name="plus" :size="16" style="margin-right:4px"></app-icon>上传资料
                   </t-button>
-                </div>
-                <div class="tb-line tb-flt" v-show="fltResOpen">
-                  <t-select v-model="rStatus" :options="resStatusOptions" style="width:126px"></t-select>
-                  <span class="sp"></span>
-                  <t-button variant="text" @click="resetResFilter">清空筛选</t-button>
                 </div>
               </div>
 
@@ -971,8 +944,6 @@
         /* ---- 用户 ---- */
         users: AdminStore.users(),
         uq: '', uRole: 'all', uStatus: 'all',
-        /* 筛选默认收起：搜索常驻，角色与状态点「筛选」再展开 */
-        fltUserOpen: false,
         uSel: 'all',
         uFold: {},
 
@@ -987,7 +958,6 @@
         /* ---- 资料 ---- */
         resources: AdminStore.resources(),
         rq: '', rStatus: 'all',
-        fltResOpen: false,
         rSel: 'all',
         rFold: {},
         rDelId: null,
@@ -1012,14 +982,6 @@
       tabName() {
         const t = this.tabs.find((x) => x.k === this.tab);
         return t ? t.t : '系统管理';
-      },
-
-      /* 收起时按钮上的条数，别让「筛过」和「没筛」长得一样 */
-      uFilterCount() {
-        return (this.uRole !== 'all' ? 1 : 0) + (this.uStatus !== 'all' ? 1 : 0);
-      },
-      rFilterCount() {
-        return this.rStatus !== 'all' ? 1 : 0;
       },
 
       roleOptions() {
