@@ -114,6 +114,17 @@ python -m http.server 8080
     └── vendor/             Vue 3.4.38 + TDesign Vue Next 1.20.10（本地 UMD）
 ```
 
+## 图片来源
+
+登录页桌面背景 `assets/images/campus-bg.jpg` 是实拍照片，不是渲染图：重庆邮电大学腾飞门（新校门）。
+
+- 原图：[Tengfei Gate Chongqing University of Posts and Telecommunications.jpg](https://commons.wikimedia.org/wiki/File:Tengfei_Gate_Chongqing_University_of_Posts_and_Telecommunications.jpg)
+- 作者：Junyi Lou
+- 许可：CC BY-SA 4.0（署名—相同方式共享）
+- 本项目的改动：按 16:9 裁切（去掉左侧杂物）、缩放到 1600×900、JPEG 质量 0.8
+
+换成学校官方宣传照之前先确认授权范围：校内课程演示问题不大，对外发布要走学校宣传部门的授权。手机端登录页不用这张图（背景是深绿渐变），所以手机上不会加载它。
+
 ## 设计与实现约定
 
 配色是学术绿体系，主色 `#006D5B`。全部令牌只在 `app.css` 的 `:root` 定义一次（`--brand-*` / `--warm*` / `--indigo*` / `--alert*`），并已接线 TDesign 主题变量。品牌名、学校名、导航、学期、演示账号只改 `config.js` 一处，禁止逐页替换。界面里显示的品牌是「高校智能学习平台」（暂定名，仓库名沿用项目名「工作台」），要改名只动 `brand.name` 这一行。
