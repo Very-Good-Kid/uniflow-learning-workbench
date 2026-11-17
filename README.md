@@ -116,14 +116,15 @@ python -m http.server 8080
 
 ## 图片来源
 
-登录页桌面背景 `assets/images/campus-bg.jpg` 是实拍照片，不是渲染图：重庆邮电大学腾飞门（新校门）。
+登录页桌面背景 `assets/images/campus-bg.jpg` 是实拍的校园全景，不是渲染图：重庆邮电大学腾飞门（新校门），左侧校门拱架、右侧是教学楼与旗阵。
 
-- 原图：[Tengfei Gate Chongqing University of Posts and Telecommunications.jpg](https://commons.wikimedia.org/wiki/File:Tengfei_Gate_Chongqing_University_of_Posts_and_Telecommunications.jpg)
-- 作者：Junyi Lou
-- 许可：CC BY-SA 4.0（署名—相同方式共享）
-- 本项目的改动：按 16:9 裁切（去掉左侧杂物）、缩放到 1600×900、JPEG 质量 0.8
+- 来源：学校统一认证登录页使用的背景图（`ids.cqupt.edu.cn/.../bg1.jpg`），版权归学校
+- 用途限定：仅用于校内课程演示。对外展示或商业使用要先取得学校宣传部门授权
+- 本项目的改动：原图 12541×5234，按 16:9 取中段裁切、缩放到 1920×1080、JPEG 质量 0.82（约 300KB）
 
-换成学校官方宣传照之前先确认授权范围：校内课程演示问题不大，对外发布要走学校宣传部门的授权。手机端登录页不用这张图（背景是深绿渐变），所以手机上不会加载它。
+如果这张不能用，备选是维基共享上的同角度照片：[Tengfei Gate Chongqing University of Posts and Telecommunications.jpg](https://commons.wikimedia.org/wiki/File:Tengfei_Gate_Chongqing_University_of_Posts_and_Telecommunications.jpg)，摄影 Junyi Lou，CC BY-SA 4.0，署名即可使用；代价是那张有行人和路障，画面不如官方这张干净。
+
+手机端登录页不用这张图（背景是深绿渐变），所以手机上不会加载它。
 
 ## 设计与实现约定
 
