@@ -116,11 +116,11 @@ python -m http.server 8080
 
 ## 图片来源
 
-登录页桌面背景 `assets/images/campus-bg.jpg` 是实拍的校园全景，不是渲染图：重庆邮电大学腾飞门（新校门），左侧校门拱架、右侧是教学楼与旗阵。
+登录页桌面背景 `assets/images/campus-bg.jpg` 是实拍的校园全景，不是渲染图：重庆邮电大学腾飞门（新校门），左边校门拱架、右边教学楼、校徽与旗阵。登录卡是磨砂半透明，照片从卡片后面透出来一层，观感与学校统一认证页一致。
 
 - 来源：学校统一认证登录页使用的背景图（`ids.cqupt.edu.cn/.../bg1.jpg`），版权归学校
 - 用途限定：仅用于校内课程演示。对外展示或商业使用要先取得学校宣传部门授权
-- 本项目的改动：原图 12541×5234，按 16:9 取中段裁切、缩放到 1920×1080、JPEG 质量 0.82（约 300KB）
+- 本项目的改动：原图 12541×5234，按登录卡的 3:2 视野取中段裁切、缩放到 1600×1000、JPEG 质量 0.82（约 250KB）。裁切位置是按卡片位置倒推的——绿色校徽要落在卡片右侧，不能被挡住；代价是右侧红字校名被裁掉一部分，校门拱架有一半在卡片后面
 
 如果这张不能用，备选是维基共享上的同角度照片：[Tengfei Gate Chongqing University of Posts and Telecommunications.jpg](https://commons.wikimedia.org/wiki/File:Tengfei_Gate_Chongqing_University_of_Posts_and_Telecommunications.jpg)，摄影 Junyi Lou，CC BY-SA 4.0，署名即可使用；代价是那张有行人和路障，画面不如官方这张干净。
 

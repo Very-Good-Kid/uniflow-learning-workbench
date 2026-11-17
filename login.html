@@ -60,12 +60,19 @@
     color: rgba(255,255,255,.6);
   }
 
-  /* ---------- 登录卡 ---------- */
+  /* ---------- 登录卡 ----------
+     磨砂玻璃而不是实心白：卡片半透明 + 背板模糊，后面的校门与路面透出来一层，
+     和学校统一认证页那张的观感一致。0.84 是折中：再透，底部那行小字就压不住背景。
+     校徽不靠「透」出来——它被放在了卡片右侧，见背景图的裁切说明。
+     backdrop-filter 不支持时自动退回半透明白，文字仍然可读。 */
   .card-login {
     width: 430px; max-width: 100%;
-    background: var(--surface);
+    background: rgba(255, 255, 255, .84);
+    -webkit-backdrop-filter: blur(14px) saturate(1.25);
+    backdrop-filter: blur(14px) saturate(1.25);
+    border: 1px solid rgba(255, 255, 255, .5);
     border-radius: 14px;
-    box-shadow: 0 20px 50px -14px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .16);
+    box-shadow: 0 24px 60px -18px rgba(0, 0, 0, .55), 0 2px 10px rgba(0, 0, 0, .18);
     padding: 26px 34px 22px;
   }
 
