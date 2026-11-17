@@ -142,17 +142,34 @@
         <div class="card-hd">
           <app-icon name="calendar" :size="16" style="color:var(--brand-7)"></app-icon>
           <h2>{{ hasPlan ? '本次规划' : '本周空档' }}</h2>
-          <span class="hd-sub" v-if="hasPlan">第 {{ version }} 版 · 未确认</span>
+          <span class="hd-sub" v-if="hasPlan">第 {{ version }} 版 · {{ confirmed ? '已确认' : '未确认' }}</span>
           <div class="hd-act">
             <t-button variant="text" size="small" @click="openPick('param')">
               {{ rangeLabel(parsed.range) }}
               <app-icon name="chev-down" :size="13" style="margin-left:3px"></app-icon>
             </t-button>
+            <button class="hd-redo only-mb" title="重新规划" @click="newChat">
+              <app-icon name="sparkle" :size="15"></app-icon>
+            </button>
           </div>
         </div>
 
+        <!-- 手机端统计条：四格竖排要占 117px，这里压成一行；范围已在上面周次里，不重复 -->
+        <div class="mb-plan-sum only-mb" v-if="confirmed && !cand.length">
+          <span class="mps-i">已加入日程</span>
+          <span class="mps-ver">可在「日程」页查看</span>
+        </div>
+        <div class="mb-plan-sum only-mb" v-else-if="hasPlan || parsed.taskIds.length">
+          <span class="mps-i" @click="explain('tasks')"><b>{{ parsed.taskIds.length }}</b> 项任务</span>
+          <i></i>
+          <span class="mps-i" @click="explain('hours')">共 <b>{{ planHours }}</b></span>
+          <i></i>
+          <span class="mps-i" @click="explain('last')">排到 <b>{{ planLast }}</b></span>
+          <span class="mps-ver">第 {{ version }} 版 · 未确认</span>
+        </div>
+
         <!-- 四格摘要：每个数字都能点开看是怎么算的 -->
-        <div class="summary tight">
+        <div class="summary tight only-desk">
           <div class="sum-cell" @click="openPick('param')">
             <div class="sum-ico teal"><app-icon name="calendar" :size="15"></app-icon></div>
             <div class="sum-body">
@@ -184,13 +201,14 @@
         </div>
 
         <!-- 冲突：课程与已确认日程之间、候选与已有之间都算 -->
-        <div class="conflict-bar inline" v-if="conflicts.length">
+        <div class="conflict-bar inline" v-if="conflicts.length" @click="conflictHint">
           <app-icon name="warning" :size="16" style="color:var(--red)"></app-icon>
           <div class="cf-txt">
             <b>{{ conflicts.length }} 处时间重叠</b>
-            <span>：{{ conflicts[0] }}</span>
+            <span>：{{ conflictSummary }}</span>
           </div>
-          <t-button variant="text" theme="danger" size="small" @click="conflictHint">怎么处理</t-button>
+          <t-button variant="text" theme="danger" size="small" @click.stop="conflictHint">怎么处理</t-button>
+          <span class="cf-go"><app-icon name="chev-right" :size="13"></app-icon></span>
         </div>
 
         <!-- 按天铺开 -->
@@ -209,7 +227,7 @@
 
               <div v-show="isOpen(g)">
                 <div v-for="b in g.items" :key="b.uid" class="pb"
-                     :class="[b.cls, { conflict: b.conflict }]" :title="b.full">
+                     :class="[b.cls, { conflict: b.conflict, 'mb-off': mbHide(g, b) }]" :title="b.full">
                   <span class="pb-t">{{ b.time }}</span>
                   <div class="pb-b">
                     <div class="pb-n">{{ b.title }}<span class="pb-m" v-if="b.meta">{{ b.meta }}</span></div>
@@ -221,6 +239,12 @@
                   </div>
                 </div>
 
+                <!-- 手机上课程与已有日程默认收起来：它们只是背景，占了大半屏却没人在这一步审 -->
+                <button class="pb-more" v-if="mbMore(g) > 0" @click="mbReveal(g)">
+                  <app-icon name="chev-down" :size="11"></app-icon>
+                  另有 {{ mbMore(g) }} 项已有安排（课程 / 日程）
+                </button>
+
                 <div class="day-empty" v-if="!g.items.length">这天没有安排</div>
               </div>
             </div>
@@ -228,7 +252,7 @@
         </div>
 
         <div class="card-ft result-ft">
-          <span class="ft-hint" v-if="!hasPlan">在左边说一句需求，或者先挑任务</span>
+          <span class="ft-hint" v-if="!hasPlan">说一句需求，或者先挑任务</span>
           <template v-else>
             <t-button variant="outline" @click="regenerate">重新生成</t-button>
             <t-button variant="outline" @click="saveDraft">保存草稿</t-button>
@@ -380,6 +404,9 @@
         hasPlan: false,
         /* 手机端：对话与候选计划分两个视图，不挤在同一屏 */
         mbView: 'chat',
+        /* 手机端把课程/已有日程收起来，只留这次要审的候选；按天展开 */
+        isMb: false,
+        mbAll: {},
         stage: 'idle',
         missing: null,
         openMap: {},
@@ -552,12 +579,46 @@
               const key = [a.uid, b.uid].sort().join('|');
               if (seen[key]) continue;
               seen[key] = 1;
-              out.push(U.mmdd(g.date) + ' ' + U.fmt(Math.max(a.s, b.s)) + '–' + U.fmt(Math.min(a.e, b.e)) +
-                ' 「' + a.title + '」与「' + b.title + '」重叠');
+              const s = Math.max(a.s, b.s), e = Math.min(a.e, b.e);
+              out.push({
+                date: g.date,
+                day: U.mmdd(g.date),
+                time: U.fmt(s) + '–' + U.fmt(e),
+                a: a.title,
+                b: b.title,
+                /* 冲突条、弹窗、对话消息共用这一句，别再各自拼 */
+                text: U.mmdd(g.date) + ' ' + U.fmt(s) + '–' + U.fmt(e) +
+                  ' 「' + a.title + '」与「' + b.title + '」重叠'
+              });
             }
           }
         });
         return out;
+      },
+
+      /* 冲突落在哪几天，按天的先后去重 */
+      conflictDays() {
+        const seen = {};
+        const out = [];
+        this.conflicts.forEach(function (c) {
+          if (seen[c.day]) return;
+          seen[c.day] = 1;
+          out.push(c.day);
+        });
+        return out;
+      },
+
+      /* 冲突条的摘要：一处给细节，多处给分布。
+         跨三天的冲突如果只报第一处，另外两处就等于没说。 */
+      conflictSummary() {
+        const list = this.conflicts;
+        if (!list.length) return '';
+        if (list.length === 1) return list[0].text;
+
+        const days = this.conflictDays;
+        let span = days.slice(0, 3).join('、');
+        if (days.length > 3) span += ' 等 ' + days.length + ' 天';
+        return span + '，最早 ' + list[0].day + ' ' + list[0].time;
       },
 
       planMinutes() {
@@ -667,6 +728,7 @@
         this.attach = [];
         this.draftText = '';
         this.openMap = {};
+        this.mbAll = {};
         this.histVisible = false;
         /* 手机上按这份对话有没有候选计划落在对应视图，别停在一屏空计划上。
            桌面不读 mbView，plan-wrap 仍是左右双栏。 */
@@ -1208,9 +1270,16 @@
         }
 
         if (this.conflicts.length) {
+          const cs = this.conflicts;
+          /* 一处说细节，多处先说分布——不然另外几处等于没提醒 */
+          const head = cs.length === 1
+            ? '另外提醒一句：' + cs[0].text + '。这处重叠之前就有，不是这次排的。'
+            : '另外提醒一句：这周有 ' + cs.length + ' 处重叠，分布在 ' +
+              this.conflictDays.join('、') + '。其中最早的一处是 ' + cs[0].text +
+              '。这些重叠之前就有，不是这次排的。';
           this.say('ai', {
             tag: 'res',
-            paras: ['另外提醒一句：' + this.conflicts[0] + '。这处重叠之前就有，不是这次排的。AI 不会自己挪你已经确认过的时段，要改得去日程里单独处理。']
+            paras: [head + 'AI 不会自己挪你已经确认过的时段，要改得去日程里单独处理。']
           });
         }
 
@@ -1236,6 +1305,29 @@
         if (this.openMap[g.date] !== undefined) return this.openMap[g.date];
         if (!this.hasPlan) return true;
         return g.hasCand || g.isToday || g.hasConflict;
+      },
+
+      /* ---------- 手机端：只把「这次要审的」摆在明面上 ----------
+         一屏里 21 条时段只有 3 条是本次候选，其余是课程和已有日程。
+         它们的作用是证明「空档是怎么来的」，不是这一步要审的东西，
+         所以默认收成一行，点一下再展开。桌面不受影响。 */
+      mbHide(g, b) {
+        /* 没有候选可审时不折：空档视图、刚确认完那种状态，课表本身就是内容 */
+        if (!this.cand.length || !this.isMb) return false;
+        if (b.cls === 'proposed' || b.conflict) return false;
+        return !this.mbAll[g.date];
+      },
+
+      mbMore(g) {
+        if (!this.cand.length || !this.isMb) return 0;
+        if (this.mbAll[g.date]) return 0;
+        return g.items.filter(function (x) {
+          return x.cls !== 'proposed' && !x.conflict;
+        }).length;
+      },
+
+      mbReveal(g) {
+        this.mbAll[g.date] = true;
       },
 
       toggleDay(g) {
@@ -1388,10 +1480,16 @@
       },
 
       conflictHint() {
+        const list = this.conflicts;
+        const rows = list.map(function (c) {
+          return [c.day + ' ' + c.time, '「' + c.a + '」×「' + c.b + '」'];
+        });
         this.explainData = {
-          title: '这处重叠怎么来的',
-          rows: [['冲突', this.conflicts[0]], ['谁造成的', '既有安排之间，不是本次规划']],
-          note: 'AI 只往空档里放，不会挪你已经确认的时段。要改的话去日程页点那块单独处理；重规划时也可以让它重排。'
+          title: rows.length > 1 ? rows.length + ' 处重叠，分别在这里' : '这处重叠怎么来的',
+          rows: rows,
+          note: 'AI 只往空档里放，不会挪你已经确认的时段。' +
+            (rows.length > 1 ? '这些重叠都出现在' : '这处重叠出现在') +
+            '已有安排之间，不是这次排出来的。要改的话去日程页点那块单独处理；重规划时也可以让它重排。'
         };
         this.explainVisible = true;
       },
@@ -1464,6 +1562,13 @@
     mounted() {
       const self = this;
       document.title = 'AI 学习规划 · ' + C.brand.name;
+
+      /* 断点判断交给 JS：折叠与否是数据层的选择，光靠 CSS 做不到 */
+      const mq = window.matchMedia('(max-width: 768px)');
+      this.isMb = mq.matches;
+      const onMq = function (e) { self.isMb = e.matches; };
+      if (mq.addEventListener) mq.addEventListener('change', onMq);
+      else if (mq.addListener) mq.addListener(onMq);
 
       this.bootChats();
 

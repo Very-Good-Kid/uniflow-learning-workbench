@@ -2564,6 +2564,9 @@ table.tasks {
 /* 冲突文案折行时，右侧动作按钮不要贴着文字 */
 .conflict-bar .cf-txt + .t-button { flex: 0 0 auto; margin-left: 4px; }
 
+/* 手机端才用的「整条可点」提示箭头 */
+.conflict-bar .cf-go { display: none; }
+
 .plan-list { padding: 4px 0 10px; }
 
 .day-hd {
@@ -2833,6 +2836,17 @@ table.tasks {
 }
 
 .ex-row b { font-weight: 500; color: var(--ink-1); white-space: nowrap; }
+
+/* 说明弹窗的行：左标签右内容。标签一旦变长（比如冲突列表的「11/20 19:00–20:40」），
+   space-between 会把内容挤到 0 宽，逐字换行撑爆弹窗。改成标签定宽、内容可折行。 */
+.ex-body .ex-row { align-items: flex-start; }
+.ex-body .ex-row > span {
+  flex: 0 0 auto;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  padding-top: 1px;
+}
+.ex-body .ex-row > b { flex: 1; min-width: 0; white-space: normal; line-height: 1.55; }
 
 @media (max-width: 1240px) {
   .chat { flex: 0 0 460px; width: 460px; }
@@ -4469,6 +4483,135 @@ table.tasks {
     min-width: 0;
   }
   .plan-wrap .summary.tight .sum-cell + .sum-cell { border-top: 0; }
+
+  /* ---------- 11/17：候选计划这条路走到底 ----------
+     手机上翻计划时，真正要审的只有候选块；头部却堆了页头说明、
+     上次规划条、四格统计，一屏 700px 里列表只分到 87px。
+     这里把「解释性」的东西全部让位给列表。 */
+  .ai-page-head { display: none; }
+
+  /* 桌面四格换单行统计条：范围在卡片头的周次里已有，不再重复 */
+  .plan-wrap .summary.tight.only-desk { display: none; }
+
+  .mb-plan-sum.only-mb {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+    height: 34px;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11.5px;
+    color: var(--ink-3);
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .mb-plan-sum .mps-i { display: inline-flex; align-items: baseline; gap: 3px; cursor: pointer; }
+  .mb-plan-sum .mps-i b {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .mb-plan-sum > i {
+    width: 3px;
+    height: 3px;
+    flex: 0 0 3px;
+    border-radius: 50%;
+    background: var(--ink-4);
+    opacity: .45;
+  }
+  .mb-plan-sum .mps-ver {
+    margin-left: auto;
+    font-size: 10.5px;
+    color: var(--brand-8);
+  }
+
+  /* 卡片头：版本号移到统计条，右侧留一个重新规划入口，窄屏也不挤 */
+  .plan-wrap > .card.result .hd-sub { display: none; }
+  .plan-wrap > .card.result .day-hd .dh-n + .dh-n { margin-left: 4px; }
+
+  .hd-redo.only-mb {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    margin-right: 2px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--brand-7);
+    cursor: pointer;
+  }
+  .hd-redo:active { background: var(--brand-1); }
+
+  /* 卡片自己不再滚：头部定住，只有列表滚 */
+  .plan-wrap > .card.result {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .plan-wrap > .card.result > .card-bd.scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* 课程与已有日程默认收起，点「另有 N 项」再展开 */
+  .pb.mb-off { display: none; }
+
+  .pb-more {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    width: calc(100% - 28px);
+    margin: 5px 14px 0;
+    padding: 5px 10px;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    background: none;
+    color: var(--ink-4);
+    font: inherit;
+    font-size: 11.5px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .pb-more:active { background: var(--line-2); }
+
+  /* 冲突条：整条可点开详情，文字吃满宽度。
+     原来「怎么处理」占掉 70px，把「谁和谁撞」挤成省略号。 */
+  .plan-wrap .conflict-bar.inline {
+    margin: 8px 14px 0;
+    padding: 6px 10px;
+    cursor: pointer;
+  }
+  .plan-wrap .conflict-bar.inline .cf-txt {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.45;
+  }
+  .plan-wrap .conflict-bar.inline .cf-txt b { margin-right: 2px; }
+  .plan-wrap .conflict-bar.inline .t-button { display: none; }
+  .plan-wrap .conflict-bar.inline .cf-go { display: block; flex: 0 0 13px; color: var(--red); opacity: .65; }
+
+  /* 底部动作：确认计划是主路径，另外两个降权 */
+  .plan-wrap .result-ft {
+    flex: 0 0 auto;
+    justify-content: stretch;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  .plan-wrap .result-ft .t-button { flex: 1 1 0; min-width: 0; padding: 0 6px; }
+  .plan-wrap .result-ft .t-button--theme-primary { flex: 1.4 1 0; }
+
+  /* 说明弹窗：手机上标签独一行，内容吃满宽度。
+     冲突列表的日期时段在 358px 里跟内容挤一行必然折成竖排。 */
+  .ex-body .ex-row { flex-direction: column; gap: 1px; }
 }
 
 /* ============================================================
