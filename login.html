@@ -20,7 +20,9 @@
     /* 桌面：校园照片打底。用的是学校统一认证登录页那张腾飞门全景
        （ids.cqupt.edu.cn 的 bg1.jpg），版权归学校，仅用于校内演示。
        原图 12541×5234，这里按 16:9 裁切并压到 1920×1080，见 README「图片来源」 */
-    background: #0E2A24 url("assets/images/campus-bg.jpg") center center / cover no-repeat;
+    /* 整幅全景铺顶、宽 120%：卡片居中时右侧只放得下「校徽+校名」其中一个，
+       放宽到 120% 才装得下两个；图片底部已经渐隐到 #0E2A24，下缘没有硬边 */
+    background: #0E2A24 url("assets/images/campus-bg.jpg") left top / 120% auto no-repeat;
     position: relative;
     overflow: hidden;
   }

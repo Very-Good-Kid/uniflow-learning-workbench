@@ -120,7 +120,8 @@ python -m http.server 8080
 
 - 来源：学校统一认证登录页使用的背景图（`ids.cqupt.edu.cn/.../bg1.jpg`），版权归学校
 - 用途限定：仅用于校内课程演示。对外展示或商业使用要先取得学校宣传部门授权
-- 本项目的改动：原图 12541×5234，按登录卡的 3:2 视野取中段裁切、缩放到 1600×1000、JPEG 质量 0.82（约 250KB）。裁切位置是按卡片位置倒推的——绿色校徽要落在卡片右侧，不能被挡住；代价是右侧红字校名被裁掉一部分，校门拱架有一半在卡片后面
+- 本项目的改动：原图 12541×5234，缩放到 1920×801，**底部 38% 渐隐到页面底色 `#0E2A24`**，JPEG 质量 0.82（约 230KB）
+- 摆放方式：不是 `cover`，而是整幅铺顶、宽度 120%（`left top / 120% auto`）。原因：卡片居中时右侧只剩 34% 宽，而「校徽 + 红字校名」合起来占画面的 27%（约 40% 视口），`cover` 怎么挪都会切掉其中一个；铺满整幅再放大 120% 才装得下两个。底部渐隐是为了让图片下缘和深绿底色接得上，不留一条硬边
 
 如果这张不能用，备选是维基共享上的同角度照片：[Tengfei Gate Chongqing University of Posts and Telecommunications.jpg](https://commons.wikimedia.org/wiki/File:Tengfei_Gate_Chongqing_University_of_Posts_and_Telecommunications.jpg)，摄影 Junyi Lou，CC BY-SA 4.0，署名即可使用；代价是那张有行人和路障，画面不如官方这张干净。
 
